@@ -790,16 +790,16 @@ def fish_cmd_blowkey(data, buffer, args):
 def fish_announce_encrypted(buffer, target):
     global fish_encryption_announced, fish_config_option
 
-    if not weechat.config_boolean(fish_config_option['announce']):
-        return
-
-    if fish_encryption_announced.get(target):
+    if (not weechat.config_boolean(fish_config_option['announce']) or
+            fish_encryption_announced.get(target)):
         return
 
     (server, nick) = target.split("/")
 
     if (weechat.info_get("irc_is_nick", nick) and
             weechat.buffer_get_string(buffer, "localvar_type") != "private"):
+        # if we get a private message and there no buffer yet, create one and
+        # jump back to the previous buffer
         weechat.command(buffer, "/mute -all query %s" % nick)
         buffer = weechat.info_get("irc_buffer", "%s,%s" % (server, nick))
         weechat.command(buffer, "/input jump_previously_visited_buffer")
@@ -812,10 +812,8 @@ def fish_announce_encrypted(buffer, target):
 def fish_announce_unencrypted(buffer, target):
     global fish_encryption_announced, fish_config_option
 
-    if not weechat.config_boolean(fish_config_option['announce']):
-        return
-
-    if not fish_encryption_announced.get(target):
+    if (not weechat.config_boolean(fish_config_option['announce']) or
+            not fish_encryption_announced.get(target)):
         return
 
     fish_alert(buffer, "Messages to/from %s are %s*not*%s encrypted." % (
