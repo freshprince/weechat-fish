@@ -739,7 +739,6 @@ def fish_cmd_blowkey(data, buffer, args):
 
     if argv[0] == "set":
         if not len(argv) >= 3:
-            weechat.prnt(buffer, "missing arguments")
             return weechat.WEECHAT_RC_ERROR
 
         fish_keys[target] = argv2eol
@@ -753,11 +752,9 @@ def fish_cmd_blowkey(data, buffer, args):
 
     if argv[0] == "remove":
         if not len(argv) == 2:
-            weechat.prnt(buffer, "too much arguments")
             return weechat.WEECHAT_RC_ERROR
 
         if target not in fish_keys:
-            weechat.prnt(buffer, "target not found")
             return weechat.WEECHAT_RC_ERROR
 
         del fish_keys[target]
@@ -771,11 +768,9 @@ def fish_cmd_blowkey(data, buffer, args):
 
     if argv[0] == "exchange":
         if server_name == "":
-            weechat.prnt(buffer, "not connected to a server")
             return weechat.WEECHAT_RC_ERROR
 
         if not len(argv) == 2:
-            weechat.prnt(buffer, "nick missing")
             return weechat.WEECHAT_RC_ERROR
 
         weechat.prnt(buffer, "Initiating DH1080 Excange with %s" % target)
@@ -784,7 +779,6 @@ def fish_cmd_blowkey(data, buffer, args):
         weechat.command(buffer, "/mute -all notice -server %s %s %s" % (server_name, argv[1], msg))
 
         return weechat.WEECHAT_RC_OK
-    weechat.prnt(buffer, "malformed command")
 
     return weechat.WEECHAT_RC_ERROR
 
