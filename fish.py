@@ -555,11 +555,11 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
 
         clean = blowcrypt_unpack(match.group(4), b)
 
-        fish_announce_encryption(buffer, target)
+        fish_announce_encrypted(buffer, target)
 
         return "%s%s" % (match.group(1), clean)
 
-    fish_announce_unencryption(buffer, target)
+    fish_announce_unencrypted(buffer, target)
 
     return string
 
@@ -588,17 +588,16 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
     buffer = weechat.info_get("irc_buffer", "%s,%s" % (server_name, dest))
 
     if not match.group(6):
-        fish_announce_unencryption(buffer, target)
+        fish_announce_unencrypted(buffer, target)
 
         return string
 
     if target not in fish_keys:
-        fish_announce_unencryption(buffer, target)
+        fish_announce_unencrypted(buffer, target)
 
         return string
 
-    fish_announce_encryption(buffer, target)
-    #weechat.prnt("", "Received encrypted msg: %s" % match.group(3))
+    fish_announce_encrypted(buffer, target)
 
     if target not in fish_cyphers:
         b = Blowfish(fish_keys[target])
@@ -678,11 +677,9 @@ def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
             match.group(2)))
 
     if target not in fish_keys:
-        fish_announce_unencryption(buffer, target)
+        fish_announce_unencrypted(buffer, target)
 
         return string
-
-    fish_announce_encryption(buffer, target)
 
     if target not in fish_cyphers:
         b = Blowfish(fish_keys[target])
@@ -690,6 +687,8 @@ def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
     else:
         b = fish_cyphers[target]
     cypher = blowcrypt_pack(match.group(3), b)
+
+    fish_announce_encrypted(buffer, target)
 
     return "%s%s" % (match.group(1), cypher)
 
@@ -786,7 +785,7 @@ def fish_cmd_blowkey(data, buffer, args):
 # HELPERS
 #
 
-def fish_announce_encryption(buffer, target):
+def fish_announce_encrypted(buffer, target):
     global fish_encryption_announced, fish_config_option
 
     if not weechat.config_boolean(fish_config_option['announce']):
@@ -808,7 +807,7 @@ def fish_announce_encryption(buffer, target):
     fish_encryption_announced[target] = True
 
 
-def fish_announce_unencryption(buffer, target):
+def fish_announce_unencrypted(buffer, target):
     global fish_encryption_announced, fish_config_option
 
     if not weechat.config_boolean(fish_config_option['announce']):
