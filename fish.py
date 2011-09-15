@@ -721,12 +721,15 @@ def fish_cmd_blowkey(data, buffer, args):
 
     argv = args.split(" ")
 
-    if argv[1] == "-server":
+    if (len(argv) > 2 and argv[1] == "-server"):
         server_name = argv[2]
         del argv[2]
         del argv[1]
     else:
         server_name = weechat.buffer_get_string(buffer, "localvar_server")
+
+    if len(argv) < 2:
+        return weechat.WEECHAT_RC_ERROR
 
     argv2eol = ""
     pos = args.find(" ")
