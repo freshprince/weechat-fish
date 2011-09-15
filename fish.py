@@ -625,10 +625,12 @@ def fish_modifier_in_topic_cb(data, modifier, server_name, string):
         return string
 
     target = "%s/%s" % (server_name, match.group(2))
-    if target not in fish_keys:
-        return string
+    buffer = weechat.info_get("irc_buffer", "%s,%s" % (server_name,
+            match.group(2)))
 
-    if not match.group(4):
+    if target not in fish_keys or not match.group(4):
+        fish_announce_unencrypted(buffer, target)
+
         return string
 
     if target not in fish_cyphers:
@@ -637,6 +639,8 @@ def fish_modifier_in_topic_cb(data, modifier, server_name, string):
     else:
         b = fish_cyphers[target]
     clean = blowcrypt_unpack(match.group(3), b)
+
+    fish_announce_encrypted(buffer, target)
 
     return "%s%s" % (match.group(1), clean)
 
@@ -649,10 +653,12 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
         return string
 
     target = "%s/%s" % (server_name, match.group(2))
-    if target not in fish_keys:
-        return string
+    buffer = weechat.info_get("irc_buffer", "%s,%s" % (server_name,
+            match.group(2)))
 
-    if not match.group(4):
+    if target not in fish_keys or not match.group(4):
+        fish_announce_unencrypted(buffer, target)
+
         return string
 
     if target not in fish_cyphers:
@@ -661,6 +667,8 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
     else:
         b = fish_cyphers[target]
     clean = blowcrypt_unpack(match.group(3), b)
+
+    fish_announce_encrypted(buffer, target)
 
     return "%s%s" % (match.group(1), clean)
 
