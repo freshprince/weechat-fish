@@ -28,6 +28,11 @@
 # copyright notice and this permission notice appear in all copies.
 #
 
+#
+# Suggestions, Bugs, ...?
+# https://github.com/freshprince/weechat-fish
+#
+
 SCRIPT_NAME = "fish"
 SCRIPT_AUTHOR = "David Flatz, Bjorn Edstrom <be@bjrn.se>"
 SCRIPT_VERSION = "0.1"
