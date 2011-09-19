@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2011 David Flatz
+# Copyright (C) 2011 David Flatz <solanum0@gmail.com>
 # Copyright (C) 2009 Bjorn Edstrom <be@bjrn.se>
 #
 # This program is free software; you can redistribute it and/or modify
