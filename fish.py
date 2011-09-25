@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2011 David Flatz <solanum0@gmail.com>
+# Copyright (C) 2011 David Flatz <david@upcs.at>
 # Copyright (C) 2009 Bjorn Edstrom <be@bjrn.se>
 #
 # This program is free software; you can redistribute it and/or modify
@@ -31,6 +31,21 @@
 #
 # Suggestions, Bugs, ...?
 # https://github.com/freshprince/weechat-fish
+
+#
+# NOTE ABOUT DH1080:
+# =================
+#
+# Diffie-Hellman key exchange assumes that you already have
+# authenticated channels between Alice and Bob.  Which means that Alice
+# has to be sure that she is really talking to Bob and not to any man in
+# the middle.  But since the whole idea of FiSH is that you want to
+# encrypt your communication on the IRC server whose operators you do
+# not trust, there is no reliable way for Alice to tell if she really is
+# talking to Bob.  It could also be some rogue IRC admin impersonating
+# Bob with a fake hostname and ident or even doing a MITM attack on
+# DH1080.  This means you can consider using DH1080 key exchange over
+# IRC utterly broken in terms of security.
 #
 
 SCRIPT_NAME = "fish"
@@ -873,8 +888,9 @@ if (__name__ == "__main__" and import_ok and
             "Set the key for a channel: /blowkey set -server freenet #blowfish key\n"
             "Remove the key:            /blowkey remove #blowfish\n"
             "Set the key for a query:   /blowkey set nick secret+key\n"
+            "List all keys:             /blowkey\n"
             "DH1080:                    /blowkey exchange nick\n"
-            "List all keys:             /blowkey",
+            "\nPlease read the source for a note about DH1080 key exchange\n",
             "list || set %(irc_channel)|%(nicks)|-server %(irc_servers) %- "
             "|| remove %(irc_channel)|%(nicks)|-server %(irc_servers) %- "
             "|| exchange %(nick)|-server %(irc_servers) %-",
