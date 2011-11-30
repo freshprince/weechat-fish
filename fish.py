@@ -50,7 +50,7 @@
 
 SCRIPT_NAME = "fish"
 SCRIPT_AUTHOR = "David Flatz, Bjorn Edstrom <be@bjrn.se>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "FiSH for weechat"
 CONFIG_FILE_NAME = SCRIPT_NAME
@@ -745,6 +745,9 @@ def fish_cmd_blowkey(data, buffer, args):
         server_name = argv[2]
         del argv[2]
         del argv[1]
+        pos = args.find(" ")
+        pos = args.find(" ", pos + 1)
+        args = args[pos+1:]
     else:
         server_name = weechat.buffer_get_string(buffer, "localvar_server")
 
