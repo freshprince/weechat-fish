@@ -105,8 +105,10 @@ def fish_config_keys_read_cb(data, config_file, section_name, option_name,
             "string", "key", "", 0, 0, "", value, 0, "", "", "", "", "", "")
     if not option:
         return weechat.WEECHAT_CONFIG_OPTION_SET_ERROR
-
-    fish_keys[option_name] = value
+    if len(value) > 72:
+        fish_keys[option_name] = value[:72]
+    else:
+        fish_keys[option_name] = value
 
     return weechat.WEECHAT_CONFIG_OPTION_SET_OK_CHANGED
 
@@ -766,8 +768,10 @@ def fish_cmd_blowkey(data, buffer, args):
     if argv[0] == "set":
         if not len(argv) >= 3:
             return weechat.WEECHAT_RC_ERROR
-
-        fish_keys[target] = argv2eol
+		if len( argv2eol ) > 72:
+         fish_keys[target] = argv2eol[:72]
+        else:
+         fish_keys[target] = argv2eol
 
         if target in fish_cyphers:
             del fish_cyphers[target]
