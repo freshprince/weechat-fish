@@ -723,6 +723,34 @@ def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
     return "%s%s" % (match.group(1), cypher)
 
 
+def fish_modifier_out_topic_cb(data, modifier, server_name, string):
+    global fish_keys, fish_cyphers
+
+    match = re.match(r"^(TOPIC (.*?) :)(.*)$", string)
+    if not match:
+        return string
+
+    target = "%s/%s" % (server_name, match.group(2))
+    buffer = weechat.info_get("irc_buffer", "%s,%s" % (server_name,
+            match.group(2)))
+
+    if target not in fish_keys:
+        fish_announce_unencrypted(buffer, target)
+
+        return string
+
+    if target not in fish_cyphers:
+        b = Blowfish(fish_keys[target])
+        fish_cyphers[target] = b
+    else:
+        b = fish_cyphers[target]
+    cypher = blowcrypt_pack(match.group(3), b)
+
+    fish_announce_encrypted(buffer, target)
+
+    return "%s%s" % (match.group(1), cypher)
+
+
 def fish_unload_cb():
     fish_config_write()
 
@@ -910,3 +938,4 @@ if (__name__ == "__main__" and import_ok and
     weechat.hook_modifier("irc_in_332", "fish_modifier_in_332_cb", "")
     weechat.hook_modifier("irc_out_privmsg", "fish_modifier_out_privmsg_cb",
             "")
+    weechat.hook_modifier("irc_out_topic", "fish_modifier_out_topic_cb", "")
