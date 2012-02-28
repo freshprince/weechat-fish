@@ -904,9 +904,9 @@ if (__name__ == "__main__" and import_ok and
     fish_config_init()
     fish_config_read()
 
-    weechat.hook_modifier("irc_in2_notice", "fish_modifier_in_notice_cb", "")
-    weechat.hook_modifier("irc_in2_privmsg", "fish_modifier_in_privmsg_cb", "")
-    weechat.hook_modifier("irc_in2_topic", "fish_modifier_in_topic_cb", "")
-    weechat.hook_modifier("irc_in2_332", "fish_modifier_in_332_cb", "")
+    weechat.hook_modifier("irc_in_notice", "fish_modifier_in_notice_cb", "")
+    weechat.hook_modifier("irc_in_privmsg", "fish_modifier_in_privmsg_cb", "")
+    weechat.hook_modifier("irc_in_topic", "fish_modifier_in_topic_cb", "")
+    weechat.hook_modifier("irc_in_332", "fish_modifier_in_332_cb", "")
     weechat.hook_modifier("irc_out_privmsg", "fish_modifier_out_privmsg_cb",
             "")
