@@ -799,7 +799,7 @@ def fish_cmd_blowkey(data, buffer, args):
         if not len(argv) == 2:
             return weechat.WEECHAT_RC_ERROR
 
-        weechat.prnt(buffer, "Initiating DH1080 Excange with %s" % target)
+        weechat.prnt(buffer, "Initiating DH1080 Exchange with %s" % target)
         fish_DH1080ctx[target] = DH1080Ctx()
         msg = dh1080_pack(fish_DH1080ctx[target])
         weechat.command(buffer, "/mute -all notice -server %s %s %s" % (server_name, argv[1], msg))
