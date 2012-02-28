@@ -191,6 +191,8 @@ class Blowfish:
 
     def __init__(self, key=None):
         if key:
+            if len(key) > 72:
+                key = key[:72]
             self.blowfish = Crypto.Cipher.Blowfish.new(key)
 
     def decrypt(self, data):
