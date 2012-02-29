@@ -729,6 +729,8 @@ def fish_modifier_out_topic_cb(data, modifier, server_name, string):
     match = re.match(r"^(TOPIC (.*?) :)(.*)$", string)
     if not match:
         return string
+    if not match.group(3):
+        return string
 
     target = "%s/%s" % (server_name, match.group(2))
     buffer = weechat.info_get("irc_buffer", "%s,%s" % (server_name,
