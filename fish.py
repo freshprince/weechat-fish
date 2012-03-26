@@ -688,7 +688,10 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
         fish_cyphers[target] = b
     else:
         b = fish_cyphers[target]
-    clean = blowcrypt_unpack(match.group(3), b)
+
+    msg = match.group(3)[:-(len(match.group(3)) % 12)]
+
+    clean = blowcrypt_unpack(msg, b)
 
     fish_announce_encrypted(buffer, target)
 
