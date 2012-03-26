@@ -546,7 +546,9 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
     if match.group(5) == "DH1080_INIT ":
         fish_DH1080ctx[target] = DH1080Ctx()
 
-        if not dh1080_unpack(match.group(4), fish_DH1080ctx[target]):
+        msg = ' '.join(match.group(4).split()[0:2])
+
+        if not dh1080_unpack(msg, fish_DH1080ctx[target]):
             fish_announce_unencrypted(buffer, target)
             return string
 
