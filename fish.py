@@ -94,7 +94,7 @@ fish_encryption_announced = {}
 #
 
 def fish_config_reload_cb(data, config_file):
-    return weechat.WEECHAT_CONFIG_READ_OK
+    return weechat.config_reload(config_file)
 
 
 def fish_config_keys_read_cb(data, config_file, section_name, option_name,
