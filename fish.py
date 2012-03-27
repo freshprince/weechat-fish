@@ -49,8 +49,8 @@
 #
 
 SCRIPT_NAME = "fish"
-SCRIPT_AUTHOR = "David Flatz, Bjorn Edstrom <be@bjrn.se>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_AUTHOR = "David Flatz <david@upcs.at>"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "FiSH for weechat"
 CONFIG_FILE_NAME = SCRIPT_NAME
