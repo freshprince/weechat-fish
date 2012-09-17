@@ -789,8 +789,16 @@ def fish_cmd_blowkey(data, buffer, args):
     else:
         server_name = weechat.buffer_get_string(buffer, "localvar_server")
 
-    if len(argv) < 2:
+    buffer_type = weechat.buffer_get_string(buffer, "localvar_type")
+    # if no target user has been specified grab the one from the buffer if it is private
+    if argv[0] == "exchange" and len(argv) == 1 and buffer_type == "private":
+        target_user = weechat.buffer_get_string(buffer, "localvar_channel")
+    elif argv[0] == "set" and (buffer_type == "private" or buffer_type == "channel") and len(argv) == 2:
+        target_user = weechat.buffer_get_string(buffer, "localvar_channel")
+    elif len(argv) < 2:
         return weechat.WEECHAT_RC_ERROR
+    else:
+        target_user = argv[1]
 
     argv2eol = ""
     pos = args.find(" ")
@@ -799,12 +807,9 @@ def fish_cmd_blowkey(data, buffer, args):
         if pos:
             argv2eol = args[pos + 1:]
 
-    target = "%s/%s" % (server_name, argv[1])
+    target = "%s/%s" % (server_name, target_user)
 
     if argv[0] == "set":
-        if not len(argv) >= 3:
-            return weechat.WEECHAT_RC_ERROR
-
         fish_keys[target] = argv2eol
 
         if target in fish_cyphers:
@@ -834,13 +839,10 @@ def fish_cmd_blowkey(data, buffer, args):
         if server_name == "":
             return weechat.WEECHAT_RC_ERROR
 
-        if not len(argv) == 2:
-            return weechat.WEECHAT_RC_ERROR
-
         weechat.prnt(buffer, "Initiating DH1080 Exchange with %s" % target)
         fish_DH1080ctx[target] = DH1080Ctx()
         msg = dh1080_pack(fish_DH1080ctx[target])
-        weechat.command(buffer, "/mute -all notice -server %s %s %s" % (server_name, argv[1], msg))
+        weechat.command(buffer, "/mute -all notice -server %s %s %s" % (server_name, target_user, msg))
 
         return weechat.WEECHAT_RC_OK
 
@@ -916,9 +918,9 @@ if (__name__ == "__main__" and import_ok and
             SCRIPT_LICENSE, SCRIPT_DESC, "fish_unload_cb", "")):
 
     weechat.hook_command("blowkey", "Manage FiSH keys",
-            "[list] | set [-server <server>] <target> <key> "
+            "[list] | set [-server <server>] [<target>] <key> "
             "| remove [-server <server>] <target> "
-            "| exchange [-server <server>] <nick>",
+            "| exchange [-server <server>] [<nick>]",
             "Add, change or remove key for target or perform DH1080 key"
             "exchange with <nick>.\n"
             "Target can be a channel or a nick.\n"
