@@ -145,6 +145,16 @@ def fish_config_init():
             "string", "marker for important FiSH messages", "", 0, 0,
             "O<", "O<", 0, "", "", "", "", "", "")
 
+    fish_config_option["mark_position"] = weechat.config_new_option(
+            fish_config_file, fish_config_section["look"], "mark_position",
+            "string", "put marker for encrypted INCOMING messages at start or end", "", 0, 0,
+            "end", "end", 0, "", "", "", "", "", "")
+
+    fish_config_option["mark_encrypted"] = weechat.config_new_option(
+            fish_config_file, fish_config_section["look"], "mark_encrypted",
+            "string", "marker for encryptd INCOMING messages", "", 0, 0,
+            "*", "*", 0, "", "", "", "", "", "")
+
     # color
     fish_config_section["color"] = weechat.config_new_section(fish_config_file,
             "color", 0, 0, "", "", "", "", "", "", "", "", "", "")
@@ -156,6 +166,11 @@ def fish_config_init():
             fish_config_file, fish_config_section["color"], "alert",
             "color", "color for important FiSH message markers", "", 0, 0,
             "lightblue", "lightblue", 0, "", "", "", "", "", "")
+
+    fish_config_option["msg_color"] = weechat.config_new_option(
+            fish_config_file, fish_config_section["color"], "msg_color",
+            "color", "color for FISH messages", "", 0, 0,
+            "default", "default", 0, "", "", "", "", "", "")
 
     # keys
     fish_config_section["keys"] = weechat.config_new_section(fish_config_file,
@@ -584,12 +599,12 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
 
         fish_announce_encrypted(buffer, target)
 
-        return "%s%s" % (match.group(1), clean)
+        return "%s%s" % (match.group(1),
+                         fish_msg_w_marker(fish_colorize_msg(clean)))
 
     fish_announce_unencrypted(buffer, target)
 
     return string
-
 
 def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
     global fish_keys, fish_cyphers
@@ -634,9 +649,12 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
     clean = blowcrypt_unpack(match.group(5), b)
 
     if not match.group(4):
-        return "%s%s" % (match.group(1), clean)
+        return "%s%s" % (match.group(1),
+                         fish_msg_w_marker(fish_colorize_msg(clean)))
 
-    return "%s%s%s\x01" % (match.group(1), match.group(4), clean)
+    return "%s%s%s\x01" % (match.group(1),
+                           match.group(4),
+                           fish_msg_w_marker(fish_colorize_msg(clean)))
 
 
 def fish_modifier_in_topic_cb(data, modifier, server_name, string):
@@ -669,7 +687,8 @@ def fish_modifier_in_topic_cb(data, modifier, server_name, string):
 
     fish_announce_encrypted(buffer, target)
 
-    return "%s%s" % (match.group(1), clean)
+    return "%s%s" % (match.group(1),
+                     fish_msg_w_marker(fish_colorize_msg(clean)))
 
 
 def fish_modifier_in_332_cb(data, modifier, server_name, string):
@@ -698,7 +717,8 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
 
     fish_announce_encrypted(buffer, target)
 
-    return "%s%s" % (match.group(1), clean)
+    return "%s%s" % (match.group(1),
+                     fish_msg_w_marker(fish_colorize_msg(clean)))
 
 
 def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
@@ -908,6 +928,46 @@ def fish_list_keys(buffer):
         (server, nick) = target.split("/")
         weechat.prnt(buffer, "\t%s(%s): %s" % (nick, server, key))
 
+def fish_msg_w_marker(msg):
+    marker = weechat.config_string(fish_config_option["mark_encrypted"])
+    if weechat.config_string(fish_config_option["mark_position"]) == "end":
+        return "%s%s" % (msg, marker)
+    else:
+        return "%s%s" % (marker, msg)
+
+def fish_colorize_msg(msg):
+    color = weechat.config_string(fish_config_option["msg_color"])
+    return "%s%s" % (color_translation(color), msg)
+
+# since irc_in_privmsg callback is invoked before irc plugin we cannot
+# use the remap_mirc hashtable to decorate the message with weechat colors.
+# hence we translate them to mirc colors
+def color_translation(color):
+    # default weechat color translation of remap_mirc
+    # unfortunetly that hashtable is weechat internal
+
+    mirc_colors = { "white"        :0,
+                    "black"        :1,
+                    "blue"         :2,
+                    "green"        :3,
+                    "lightred"     :4,
+                    "red"          :5,
+                    "magneta"      :6,
+                    "brown"        :7,
+                    "yellow"       :8,
+                    "lightgreen"   :9,
+                    "cyan"         :10,
+                    "lightcyan"    :11,
+                    "lightblue"    :12,
+                    "lightmagneta" :13,
+                    "gray"         :14 }
+
+    color = mirc_colors.get(color)
+
+    if color == None:
+        return ""
+    else:
+        return "\x03" + str(color)
 
 #
 # MAIN
