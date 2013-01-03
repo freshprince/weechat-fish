@@ -148,8 +148,8 @@ def fish_config_init():
 
     fish_config_option["mark_position"] = weechat.config_new_option(
             fish_config_file, fish_config_section["look"], "mark_position",
-            "string", "put marker for encrypted INCOMING messages at start or end", "off|begin|end",
-            0,0, "off", "off", 0, "", "", "", "", "", "")
+            "integer", "put marker for encrypted INCOMING messages at start or end", "off|begin|end",
+            0,2, "off", "off", 0, "", "", "", "", "", "")
 
     fish_config_option["mark_encrypted"] = weechat.config_new_option(
             fish_config_file, fish_config_section["look"], "mark_encrypted",
