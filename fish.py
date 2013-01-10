@@ -814,8 +814,10 @@ def fish_cmd_blowkey(data, buffer, args):
     pos = args.find(" ")
     if pos:
         pos = args.find(" ", pos + 1)
-        if pos:
+        if pos > 0:
             argv2eol = args[pos + 1:]
+        else:
+            argv2eol = args[args.find(" ") +1:]
 
     target = "%s/%s" % (server_name, target_user)
 
