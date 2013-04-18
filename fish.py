@@ -283,7 +283,7 @@ def blowcrypt_unpack(msg, cipher):
     except ValueError:
         raise MalformedError
 
-    return plain.strip('\x00')
+    return plain.strip('\x00').replace('\n','')
 
 
 #
