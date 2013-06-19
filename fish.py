@@ -540,56 +540,57 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
         return string
 
     target = "%s/%s" % (server_name, match.group(2))
+    targetl = ("%s/%s" % (server_name, match.group(2))).lower()
     buffer = weechat.info_get("irc_buffer", "%s,%s" % (
             server_name, match.group(2)))
 
-    if match.group(5) == "DH1080_FINISH " and target in fish_DH1080ctx:
-        if not dh1080_unpack(match.group(4), fish_DH1080ctx[target]):
+    if match.group(5) == "DH1080_FINISH " and targetl in fish_DH1080ctx:
+        if not dh1080_unpack(match.group(4), fish_DH1080ctx[targetl]):
             fish_announce_unencrypted(buffer, target)
             return string
 
         fish_alert(buffer, "Key exchange for %s sucessful" % target)
 
-        fish_keys[target] = dh1080_secret(fish_DH1080ctx[target])
-        if target in fish_cyphers:
-            del fish_cyphers[target]
-        del fish_DH1080ctx[target]
+        fish_keys[targetl] = dh1080_secret(fish_DH1080ctx[targetl])
+        if targetl in fish_cyphers:
+            del fish_cyphers[targetl]
+        del fish_DH1080ctx[targetl]
 
         return ""
 
     if match.group(5) == "DH1080_INIT ":
-        fish_DH1080ctx[target] = DH1080Ctx()
+        fish_DH1080ctx[targetl] = DH1080Ctx()
 
         msg = ' '.join(match.group(4).split()[0:2])
 
-        if not dh1080_unpack(msg, fish_DH1080ctx[target]):
+        if not dh1080_unpack(msg, fish_DH1080ctx[targetl]):
             fish_announce_unencrypted(buffer, target)
             return string
 
-        reply = dh1080_pack(fish_DH1080ctx[target])
+        reply = dh1080_pack(fish_DH1080ctx[targetl])
 
         fish_alert(buffer, "Key exchange initiated by %s. Key set." % target)
 
         weechat.command(buffer, "/mute -all notice %s %s" % (
                 match.group(2), reply))
 
-        fish_keys[target] = dh1080_secret(fish_DH1080ctx[target])
-        if target in fish_cyphers:
-            del fish_cyphers[target]
-        del fish_DH1080ctx[target]
+        fish_keys[targetl] = dh1080_secret(fish_DH1080ctx[targetl])
+        if targetl in fish_cyphers:
+            del fish_cyphers[targetl]
+        del fish_DH1080ctx[targetl]
 
         return ""
 
     if match.group(5) in ["+OK ", "mcps "]:
-        if target not in fish_keys:
+        if targetl not in fish_keys:
             fish_announce_unencrypted(buffer, target)
             return string
 
-        if target not in fish_cyphers:
-            b = Blowfish(fish_keys[target])
-            fish_cyphers[target] = b
+        if targetl not in fish_cyphers:
+            b = Blowfish(fish_keys[targetl])
+            fish_cyphers[targetl] = b
         else:
-            b = fish_cyphers[target]
+            b = fish_cyphers[targetl]
 
         clean = blowcrypt_unpack(match.group(4), b)
 
@@ -622,6 +623,7 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
     else:
         dest = match.group(3)
     target = "%s/%s" % (server_name, dest)
+    targetl = ("%s/%s" % (server_name, dest)).lower()
     buffer = weechat.info_get("irc_buffer", "%s,%s" % (server_name, dest))
 
     if not match.group(6):
@@ -629,18 +631,18 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
 
         return string
 
-    if target not in fish_keys:
+    if targetl not in fish_keys:
         fish_announce_unencrypted(buffer, target)
 
         return string
 
     fish_announce_encrypted(buffer, target)
 
-    if target not in fish_cyphers:
-        b = Blowfish(fish_keys[target])
-        fish_cyphers[target] = b
+    if targetl not in fish_cyphers:
+        b = Blowfish(fish_keys[targetl])
+        fish_cyphers[targetl] = b
     else:
-        b = fish_cyphers[target]
+        b = fish_cyphers[targetl]
     clean = blowcrypt_unpack(match.group(5), b)
 
     if not match.group(4):
@@ -662,19 +664,20 @@ def fish_modifier_in_topic_cb(data, modifier, server_name, string):
         return string
 
     target = "%s/%s" % (server_name, match.group(2))
+    targetl = ("%s/%s" % (server_name, match.group(2))).lower()
     buffer = weechat.info_get("irc_buffer", "%s,%s" % (server_name,
             match.group(2)))
 
-    if target not in fish_keys or not match.group(4):
+    if targetl not in fish_keys or not match.group(4):
         fish_announce_unencrypted(buffer, target)
 
         return string
 
-    if target not in fish_cyphers:
-        b = Blowfish(fish_keys[target])
-        fish_cyphers[target] = b
+    if targetl not in fish_cyphers:
+        b = Blowfish(fish_keys[targetl])
+        fish_cyphers[targetl] = b
     else:
-        b = fish_cyphers[target]
+        b = fish_cyphers[targetl]
     clean = blowcrypt_unpack(match.group(3), b)
 
     fish_announce_encrypted(buffer, target)
@@ -690,19 +693,20 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
         return string
 
     target = "%s/%s" % (server_name, match.group(2))
+    targetl = ("%s/%s" % (server_name, match.group(2))).lower()
     buffer = weechat.info_get("irc_buffer", "%s,%s" % (server_name,
             match.group(2)))
 
-    if target not in fish_keys or not match.group(4):
+    if targetl not in fish_keys or not match.group(4):
         fish_announce_unencrypted(buffer, target)
 
         return string
 
-    if target not in fish_cyphers:
-        b = Blowfish(fish_keys[target])
-        fish_cyphers[target] = b
+    if targetl not in fish_cyphers:
+        b = Blowfish(fish_keys[targetl])
+        fish_cyphers[targetl] = b
     else:
-        b = fish_cyphers[target]
+        b = fish_cyphers[targetl]
 
     clean = blowcrypt_unpack(match.group(3), b)
 
@@ -719,19 +723,20 @@ def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
         return string
 
     target = "%s/%s" % (server_name, match.group(2))
+    targetl = ("%s/%s" % (server_name, match.group(2))).lower()
     buffer = weechat.info_get("irc_buffer", "%s,%s" % (server_name,
             match.group(2)))
 
-    if target not in fish_keys:
+    if targetl not in fish_keys:
         fish_announce_unencrypted(buffer, target)
 
         return string
 
-    if target not in fish_cyphers:
-        b = Blowfish(fish_keys[target])
-        fish_cyphers[target] = b
+    if targetl not in fish_cyphers:
+        b = Blowfish(fish_keys[targetl])
+        fish_cyphers[targetl] = b
     else:
-        b = fish_cyphers[target]
+        b = fish_cyphers[targetl]
     cypher = blowcrypt_pack(match.group(3), b)
 
     fish_announce_encrypted(buffer, target)
@@ -749,19 +754,20 @@ def fish_modifier_out_topic_cb(data, modifier, server_name, string):
         return string
 
     target = "%s/%s" % (server_name, match.group(2))
+    targetl = ("%s/%s" % (server_name, match.group(2))).lower()
     buffer = weechat.info_get("irc_buffer", "%s,%s" % (server_name,
             match.group(2)))
 
-    if target not in fish_keys:
+    if targetl not in fish_keys:
         fish_announce_unencrypted(buffer, target)
 
         return string
 
-    if target not in fish_cyphers:
-        b = Blowfish(fish_keys[target])
-        fish_cyphers[target] = b
+    if targetl not in fish_cyphers:
+        b = Blowfish(fish_keys[targetl])
+        fish_cyphers[targetl] = b
     else:
-        b = fish_cyphers[target]
+        b = fish_cyphers[targetl]
     cypher = blowcrypt_pack(match.group(3), b)
 
     fish_announce_encrypted(buffer, target)
@@ -820,12 +826,13 @@ def fish_cmd_blowkey(data, buffer, args):
             argv2eol = args[args.find(" ") +1:]
 
     target = "%s/%s" % (server_name, target_user)
+    targetl = ("%s/%s" % (server_name, target_user)).lower()
 
     if argv[0] == "set":
-        fish_keys[target] = argv2eol
+        fish_keys[targetl] = argv2eol
 
         if target in fish_cyphers:
-            del fish_cyphers[target]
+            del fish_cyphers[targetl]
 
         weechat.prnt(buffer, "set key for %s to %s" % (target, argv2eol))
 
@@ -835,13 +842,13 @@ def fish_cmd_blowkey(data, buffer, args):
         if not len(argv) == 2:
             return weechat.WEECHAT_RC_ERROR
 
-        if target not in fish_keys:
+        if targetl not in fish_keys:
             return weechat.WEECHAT_RC_ERROR
 
-        del fish_keys[target]
+        del fish_keys[targetl]
 
-        if target in fish_cyphers:
-            del fish_cyphers[target]
+        if targetl in fish_cyphers:
+            del fish_cyphers[targetl]
 
         weechat.prnt(buffer, "removed key for %s" % target)
 
@@ -852,8 +859,8 @@ def fish_cmd_blowkey(data, buffer, args):
             return weechat.WEECHAT_RC_ERROR
 
         weechat.prnt(buffer, "Initiating DH1080 Exchange with %s" % target)
-        fish_DH1080ctx[target] = DH1080Ctx()
-        msg = dh1080_pack(fish_DH1080ctx[target])
+        fish_DH1080ctx[targetl] = DH1080Ctx()
+        msg = dh1080_pack(fish_DH1080ctx[targetl])
         weechat.command(buffer, "/mute -all notice -server %s %s %s" % (server_name, target_user, msg))
 
         return weechat.WEECHAT_RC_OK
