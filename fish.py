@@ -50,7 +50,7 @@
 # IRC utterly broken in terms of security.
 #
 
-SCRIPT_NAME = "fish-lock"
+SCRIPT_NAME = "fish"
 SCRIPT_AUTHOR = "David Flatz <david@upcs.at>"
 SCRIPT_VERSION = "0.9"
 SCRIPT_LICENSE = "GPL3"
