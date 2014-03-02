@@ -579,8 +579,8 @@ def fish_modifier_lock_input(data, modifier, modifier_data, string):
     fish_lock_input = input.strip()
 
     if fish_lock_hash == "":
-        return fish_lock_prompt_lock
-    return fish_lock_prompt_unlock
+        return fish_lock_prompt_lock + '\x19b#'
+    return fish_lock_prompt_unlock + '\x19b#'
 
 
 def fish_modifier_in_notice_cb(data, modifier, server_name, string):
@@ -863,10 +863,19 @@ def fish_cmd_blowkey(data, buffer, args):
 
     elif args == "unsetpw":
 
-        ### make sure to decrypt keys before unsetting!!! ###
         fish_lock_cipher = None
         weechat.config_option_set(fish_config_option['salt'], "", 1)
         weechat.config_option_set(fish_config_option['hash'], "", 1)
+        fish_config_write()
+
+        weechat.prnt("", "%sblowkey: %spassword %sdisabled" % (
+            weechat.color("blue"),
+            weechat.color("reset"),
+            weechat.color("red")))
+        weechat.prnt("", "%sblowkey: %skeys are now stored in plain text" % (
+            weechat.color("blue"),
+            weechat.color("red")))
+
         return weechat.WEECHAT_RC_OK
 
     argv = args.split(" ")
@@ -976,11 +985,6 @@ def fish_lock_hook_all():
             "input_text_display_with_cursor", "fish_modifier_lock_input", "")
 
 def fish_lock():
-    global fish_lock_prompt, fish_lock_salt, fish_lock_hash
-
-    fish_lock_salt = weechat.config_string(fish_config_option['salt'])
-    fish_lock_hash = weechat.config_string(fish_config_option['hash'])
-
     fish_lock_hook_all()
 
 
@@ -1081,6 +1085,7 @@ def fish_lock_command_run_input(data, buffer, command):
                     weechat.color("green")))
                 fish_lock_cipher = Blowfish(key)
 
+        fish_config_write()
         fish_lock_unhook_all()
         weechat.buffer_set(buffer, "input", "")
         return weechat.WEECHAT_RC_OK_EAT
@@ -1201,6 +1206,8 @@ if (__name__ == "__main__" and import_ok and
 
     fish_config_init()
     fish_config_read()
+
+    fish_lock_salt = weechat.config_string(fish_config_option['salt'])
     fish_lock_hash = weechat.config_string(fish_config_option['hash'])
     if fish_lock_hash != "":
         fish_lock()
