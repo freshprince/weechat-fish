@@ -578,6 +578,7 @@ def fish_modifier_lock_input(data, modifier, modifier_data, string):
     input = weechat.string_remove_color(string, "")
     fish_lock_input = input.strip()
 
+    # '\x19b#' = cursor
     if fish_lock_hash == "":
         return fish_lock_prompt_lock + '\x19b#'
     return fish_lock_prompt_unlock + '\x19b#'
@@ -851,6 +852,7 @@ def fish_unload_cb():
 def fish_cmd_blowkey(data, buffer, args):
     global fish_keys, fish_cyphers, fish_DH1080ctx
     global fish_config_option, fish_lock_cipher
+    global fish_lock_salt, fish_lock_hash
 
     if args == "" or args == "list":
         fish_list_keys(buffer)
@@ -864,6 +866,8 @@ def fish_cmd_blowkey(data, buffer, args):
     elif args == "unsetpw":
 
         fish_lock_cipher = None
+        fish_lock_salt = ""
+        fish_lock_hash = ""
         weechat.config_option_set(fish_config_option['salt'], "", 1)
         weechat.config_option_set(fish_config_option['hash'], "", 1)
         fish_config_write()
