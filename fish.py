@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #
+# Copyright (C) 2014 Charles Franklin <jakhead@gmail.com>
 # Copyright (C) 2012 Markus Näsman <markus@botten.org>
 # Copyright (C) 2011 David Flatz <david@upcs.at>
 # Copyright (C) 2009 Bjorn Edstrom <be@bjrn.se>
@@ -51,7 +52,7 @@
 
 SCRIPT_NAME = "fish"
 SCRIPT_AUTHOR = "David Flatz <david@upcs.at>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_VERSION = "0.9"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "FiSH for weechat"
 CONFIG_FILE_NAME = SCRIPT_NAME
@@ -72,6 +73,7 @@ except ImportError:
 
 try:
     import Crypto.Cipher.Blowfish
+    from Crypto.Protocol.KDF import PBKDF2
 except:
     print "Python Cryptography Toolkit must be installed to use fish"
     import_ok = False
@@ -89,6 +91,18 @@ fish_cyphers = {}
 fish_DH1080ctx = {}
 fish_encryption_announced = {}
 
+fish_lock_cipher = None
+fish_lock_salt = ""
+fish_lock_hash = ""
+fish_lock_prompt_unlock = "Enter password to unlock fish.conf: "
+fish_lock_prompt_lock = "Set fish.conf password: "
+fish_lock_input = ""
+fish_lock_hook_command_run = {
+    "input" : ("/input *",  "fish_lock_command_run_input"),
+    "buffer": ("/buffer *", "fish_lock_command_run_buffer"),
+    "window": ("/window *", "fish_lock_command_run_window"),
+}
+fish_lock_hooks = {}
 
 #
 # CONFIG
@@ -113,17 +127,28 @@ def fish_config_keys_read_cb(data, config_file, section_name, option_name,
 
 
 def fish_config_keys_write_cb(data, config_file, section_name):
-    global fish_keys
+    global fish_keys, fish_lock_cipher
 
     weechat.config_write_line(config_file, section_name, "")
     for target, key in sorted(fish_keys.iteritems()):
-        weechat.config_write_line(config_file, target, key)
+
+        if fish_lock_cipher != None:
+            ### ENCRYPT Targets/Keys ###
+            weechat.config_write_line(config_file,
+                                      blowcrypt_pack(target, fish_lock_cipher),
+                                      blowcrypt_pack(key, fish_lock_cipher))
+
+        else:
+            weechat.config_write_line(config_file, target, key)
 
     return weechat.WEECHAT_RC_OK
 
 
 def fish_config_init():
     global fish_config_file, fish_config_section, fish_config_option
+    global fish_lock_salt, fish_lock_hash, fish_lock_cipher
+
+#    fish_lock_cipher = Blowfish("testing")
 
     fish_config_file = weechat.config_new(CONFIG_FILE_NAME,
             "fish_config_reload_cb", "")
@@ -167,6 +192,26 @@ def fish_config_init():
             fish_config_file, fish_config_section["color"], "alert",
             "color", "color for important FiSH message markers", "", 0, 0,
             "lightblue", "lightblue", 0, "", "", "", "", "", "")
+    
+    # lock
+    fish_config_section["lock"] = weechat.config_new_section(fish_config_file,
+            "lock", 0, 0, "", "", "", "", "", "", "", "", "", "")
+    if not fish_config_section["lock"]:
+        weechat.config_free(fish_config_file)
+        return
+
+    fish_config_option["salt"] = weechat.config_new_option(
+        fish_config_file, fish_config_section["lock"], "salt",
+        "string", "salt for computing hash", "", 0, 0,
+        blowcrypt_b64encode(urandom(16)),
+        blowcrypt_b64encode(urandom(16)),
+        0, "", "", "", "", "", "")
+
+    fish_config_option["hash"] = weechat.config_new_option(
+        fish_config_file, fish_config_section["lock"], "hash",
+        "string", "hash of passphrase for validation", "", 0, 0,
+        "", "",
+        0, "", "", "", "", "", "")
 
     # keys
     fish_config_section["keys"] = weechat.config_new_section(fish_config_file,
@@ -183,6 +228,7 @@ def fish_config_read():
     global fish_config_file
 
     return weechat.config_read(fish_config_file)
+    
 
 
 def fish_config_write():
@@ -246,6 +292,10 @@ def blowcrypt_b64decode(s):
             res +=chr(((right & (0xFF << ((3 - i) * 8))) >> ((3 - i) * 8)))
         s = s[12:]
     return res
+
+
+def key_from_pass(passphrase, salt):
+    return blowcrypt_b64encode(PBKDF2(passphrase, salt, 32))
 
 
 def padto(msg, length):
@@ -524,6 +574,18 @@ def sha256(s):
 # HOOKS
 #
 
+def fish_modifier_lock_input(data, modifier, modifier_data, string):
+    global fish_config_option, fish_lock_input, fish_lock_prompt, fish_lock_hash
+
+    input = weechat.string_remove_color(string, "")
+    fish_lock_input = input.strip()
+
+    cursor = '\x19b#'
+    if fish_lock_hash == "":
+        return fish_lock_prompt_lock + cursor
+    return fish_lock_prompt_unlock + cursor
+
+
 def fish_modifier_in_notice_cb(data, modifier, server_name, string):
     global fish_DH1080ctx, fish_keys, fish_cyphers
 
@@ -535,7 +597,7 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
     #match.group(2): source
     #match.group(3): target
     #match.group(4): msg
-    #match.group(5): DH1080_INIT |DH1080_FINISH 
+    #match.group(5): DH1080_INIT |DH1080_FINISH
     if not match or not match.group(5):
         return string
 
@@ -605,6 +667,7 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
 
     return string
 
+
 def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
     global fish_keys, fish_cyphers
 
@@ -617,7 +680,7 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
     #match.group(3): target
     #match.group(4): action
     #match.group(5): msg
-    #match.group(6): +OK |mcps 
+    #match.group(6): +OK |mcps
     if not match:
         return string
 
@@ -662,7 +725,7 @@ def fish_modifier_in_topic_cb(data, modifier, server_name, string):
     #match.group(1): msg without payload
     #match.group(2): channel
     #match.group(3): topic
-    #match.group(4): +OK |mcps 
+    #match.group(4): +OK |mcps
     if not match:
         return string
 
@@ -790,9 +853,34 @@ def fish_unload_cb():
 
 def fish_cmd_blowkey(data, buffer, args):
     global fish_keys, fish_cyphers, fish_DH1080ctx
+    global fish_config_option, fish_lock_cipher
+    global fish_lock_salt, fish_lock_hash
 
     if args == "" or args == "list":
         fish_list_keys(buffer)
+
+        return weechat.WEECHAT_RC_OK
+
+    elif args == "setpw":
+        fish_lock()
+        return weechat.WEECHAT_RC_OK
+
+    elif args == "unsetpw":
+
+        fish_lock_cipher = None
+        fish_lock_salt = ""
+        fish_lock_hash = ""
+        weechat.config_option_set(fish_config_option['salt'], "", 1)
+        weechat.config_option_set(fish_config_option['hash'], "", 1)
+        fish_config_write()
+
+        weechat.prnt("", "%sblowkey: %spassword %sdisabled" % (
+            weechat.color("blue"),
+            weechat.color("reset"),
+            weechat.color("red")))
+        weechat.prnt("", "%sblowkey: %skeys are now stored in plain text" % (
+            weechat.color("blue"),
+            weechat.color("red")))
 
         return weechat.WEECHAT_RC_OK
 
@@ -868,12 +956,164 @@ def fish_cmd_blowkey(data, buffer, args):
 
         return weechat.WEECHAT_RC_OK
 
+
+
     return weechat.WEECHAT_RC_ERROR
 
 
 #
 # HELPERS
 #
+
+def fish_lock_unhook_one(hook):
+    global fish_lock_hooks
+    if hook in fish_lock_hooks:
+        weechat.unhook(fish_lock_hooks[hook])
+        del fish_lock_hooks[hook]
+
+
+def fish_lock_unhook_all():
+    global fish_lock_hook_command_run, fish_lock_hooks
+    fish_lock_unhook_one("modifier")
+    map(fish_lock_unhook_one, fish_lock_hook_command_run.keys())
+
+
+def fish_lock_hook_all():
+    global fish_lock_hook_command_run, fish_lock_hooks
+    global fish_lock_salt, fish_lock_hash
+
+    for hook, value in fish_lock_hook_command_run.iteritems():
+        if hook not in fish_lock_hooks:
+            fish_lock_hooks[hook] = weechat.hook_command_run(value[0], value[1], "")
+
+    if "modifier" not in fish_lock_hooks:
+        fish_lock_hooks["modifier"] = weechat.hook_modifier(
+            "input_text_display_with_cursor", "fish_modifier_lock_input", "")
+
+def fish_lock():
+    fish_lock_hook_all()
+
+
+def fish_lock_decrypt_keys():
+    global fish_keys, fish_lock_cipher
+    global fish_cyphers
+
+    fish_keys_tmp = {}
+    for target, key in fish_keys.iteritems():
+        ### DECRYPT Targets/Keys ###
+        fish_keys_tmp[blowcrypt_unpack(
+            target,
+            fish_lock_cipher)] = blowcrypt_unpack(key,
+                                                  fish_lock_cipher)
+        
+    fish_keys = fish_keys_tmp
+
+
+def fish_lock_command_run_input(data, buffer, command):
+    global fish_lock_input
+
+    if command == "/input search_text" or command.find("/input jump") == 0:
+        return weechat.WEECHAT_RC_OK_EAT
+
+    elif command == "/input complete_next":
+        return weechat.WEECHAT_RC_OK_EAT
+
+    elif command == "/input complete_previous":
+        return weechat.WEECHAT_RC_OK_EAT
+
+    elif command == "/input return":
+        global fish_config_option
+        global fish_lock_salt, fish_lock_hash, fish_lock_cipher
+
+        if fish_lock_salt and fish_lock_hash:
+
+            key = key_from_pass(fish_lock_input, fish_lock_salt)
+
+            # hashes match?
+            if key_from_pass(key, fish_lock_salt) == fish_lock_hash:
+                fish_lock_input = None
+
+                fish_lock_cipher = Blowfish(key)
+
+                weechat.prnt("", "%sblowkey: %spassword accepted" % (
+                    weechat.color("blue"),
+                    weechat.color("green")))
+                fish_lock_decrypt_keys()
+
+            else:
+                # password incorrect, try again
+                weechat.prnt("", "\n%s%sblowkey: %spassword incorrect" % (
+                    weechat.prefix("error"),
+                    weechat.color("blue"),
+                    weechat.color("red")))
+
+                # no password entered, unload script
+                if fish_lock_input == "":
+                    fish_lock_unhook_all()
+
+                    # blowkey: SCRIPT_NAME NOT LOADED
+                    weechat.prnt("", "%s%sblowkey: %s%s NOT LOADED" % (
+                        weechat.prefix("error"),
+                        weechat.color("blue"),
+                        weechat.color("black,yellow"),
+                        SCRIPT_NAME ))
+
+                    # blowkey: run /script load SCRIPT_NAME.py to try again
+                    weechat.prnt("",
+                                 "%s%sblowkey: %srun '/script load "
+                                 "%s.py' to to try again" % (
+                                     weechat.prefix("error"),
+                                     weechat.color("blue"),
+                                     weechat.color("red"),
+                                     SCRIPT_NAME))
+                    weechat.prnt("", "\n")
+
+                    # unload script
+                    weechat.command(weechat.current_buffer(),
+                                    "/wait 1ms /python unload %s" % SCRIPT_NAME)
+
+                    weechat.buffer_set(weechat.current_buffer(), "input", "")
+                    return weechat.WEECHAT_RC_OK
+
+                weechat.buffer_set(weechat.current_buffer(), "input", "")
+                return weechat.WEECHAT_RC_OK_EAT
+
+        # generate new salt, key, and hash
+        else:
+            fish_lock_salt = blowcrypt_b64encode(urandom(16))
+            weechat.config_option_set(
+                fish_config_option['salt'], fish_lock_salt, 1)
+
+            key = key_from_pass(fish_lock_input, fish_lock_salt)
+            fish_lock_input = None
+
+            fish_lock_hash = key_from_pass(key, fish_lock_salt)
+
+
+            if key_from_pass(key, fish_lock_salt) == fish_lock_hash:
+                weechat.config_option_set(
+                    fish_config_option['hash'], fish_lock_hash, 1)
+                weechat.prnt("", "%sblowkey: %spassword saved" % (
+                    weechat.color("blue"),
+                    weechat.color("green")))
+                fish_lock_cipher = Blowfish(key)
+
+        fish_config_write()
+        fish_lock_unhook_all()
+        weechat.buffer_set(buffer, "input", "")
+        return weechat.WEECHAT_RC_OK_EAT
+    return weechat.WEECHAT_RC_OK
+
+
+def fish_lock_command_run_buffer(data, buffer, command):
+    """ Function called when a command "/buffer xxxx" is run """
+    return weechat.WEECHAT_RC_OK_EAT
+
+    
+def fish_lock_command_run_window(data, buffer, command):
+    """ Function called when a command "/buffer xxxx" is run """
+    return weechat.WEECHAT_RC_OK_EAT
+
 
 def fish_announce_encrypted(buffer, target):
     global fish_encryption_announced, fish_config_option
@@ -930,6 +1170,7 @@ def fish_list_keys(buffer):
         (server, nick) = target.split("/")
         weechat.prnt(buffer, "\t%s(%s): %s" % (nick, server, key))
 
+
 def fish_msg_w_marker(msg):
     marker = weechat.config_string(fish_config_option["mark_encrypted"])
     if weechat.config_string(fish_config_option["mark_position"]) == "end":
@@ -946,12 +1187,13 @@ if (__name__ == "__main__" and import_ok and
         weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
             SCRIPT_LICENSE, SCRIPT_DESC, "fish_unload_cb", "")):
 
+
     weechat.hook_command("blowkey", "Manage FiSH keys",
-            "[list] | set [-server <server>] [<target>] <key> "
+            "[list] | [setpw] | [unsetpw] | set [-server <server>] [<target>] <key> "
             "| remove [-server <server>] <target> "
             "| exchange [-server <server>] [<nick>]",
-            "Add, change or remove key for target or perform DH1080 key"
-            "exchange with <nick>.\n"
+            "Add, change or remove key for target or perform DH1080\n"
+            "keyexchange with <nick>.\n"
             "Target can be a channel or a nick.\n"
             "\n"
             "Without arguments this command lists all keys.\n"
@@ -960,21 +1202,36 @@ if (__name__ == "__main__" and import_ok and
             "Set the key for a channel: /blowkey set -server freenet #blowfish key\n"
             "Remove the key:            /blowkey remove #blowfish\n"
             "Set the key for a query:   /blowkey set nick secret+key\n"
-            "List all keys:             /blowkey\n"
+            "List all keys:             /blowkey\n\n"
+            "Set fish.conf password:    /blowkey setpw\n"
+            "Remove fish.conf password: /blowkey unsetpw\n"
+            "\n** stores keys in plaintext by default **\n\n"
             "DH1080:                    /blowkey exchange nick\n"
             "\nPlease read the source for a note about DH1080 key exchange\n",
-            "list || set %(irc_channel)|%(nicks)|-server %(irc_servers) %- "
+            "list"
+            "||setpw"
+            "||unsetpw"
+            "|| set %(irc_channel)|%(nicks)|-server %(irc_servers) %- "
             "|| remove %(irc_channel)|%(nicks)|-server %(irc_servers) %- "
             "|| exchange %(nick)|-server %(irc_servers) %-",
             "fish_cmd_blowkey", "")
 
+
     fish_config_init()
     fish_config_read()
+
+    fish_lock_salt = weechat.config_string(fish_config_option['salt'])
+    fish_lock_hash = weechat.config_string(fish_config_option['hash'])
+    if fish_lock_hash != "":
+        fish_lock()
+
+
 
     weechat.hook_modifier("irc_in_notice", "fish_modifier_in_notice_cb", "")
     weechat.hook_modifier("irc_in_privmsg", "fish_modifier_in_privmsg_cb", "")
     weechat.hook_modifier("irc_in_topic", "fish_modifier_in_topic_cb", "")
     weechat.hook_modifier("irc_in_332", "fish_modifier_in_332_cb", "")
-    weechat.hook_modifier("irc_out_privmsg", "fish_modifier_out_privmsg_cb",
-            "")
+    weechat.hook_modifier("irc_out_privmsg", "fish_modifier_out_privmsg_cb", "")
     weechat.hook_modifier("irc_out_topic", "fish_modifier_out_topic_cb", "")
+
+
