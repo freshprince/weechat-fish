@@ -133,7 +133,9 @@ def fish_config_keys_write_cb(data, config_file, section_name):
     for target, key in sorted(fish_keys.iteritems()):
 
         if fish_lock_cipher != None:
-            weechat.config_write_line(config_file, target,
+            ### ENCRYPT Targets/Keys ###
+            weechat.config_write_line(config_file,
+                                      blowcrypt_pack(target, fish_lock_cipher),
                                       blowcrypt_pack(key, fish_lock_cipher))
 
         else:
@@ -578,10 +580,10 @@ def fish_modifier_lock_input(data, modifier, modifier_data, string):
     input = weechat.string_remove_color(string, "")
     fish_lock_input = input.strip()
 
-    # '\x19b#' = cursor
+    cursor = '\x19b#'
     if fish_lock_hash == "":
-        return fish_lock_prompt_lock + '\x19b#'
-    return fish_lock_prompt_unlock + '\x19b#'
+        return fish_lock_prompt_lock + cursor
+    return fish_lock_prompt_unlock + cursor
 
 
 def fish_modifier_in_notice_cb(data, modifier, server_name, string):
@@ -996,8 +998,15 @@ def fish_lock_decrypt_keys():
     global fish_keys, fish_lock_cipher
     global fish_cyphers
 
+    fish_keys_tmp = {}
     for target, key in fish_keys.iteritems():
-        fish_keys[target] = blowcrypt_unpack(key, fish_lock_cipher)
+        ### DECRYPT Targets/Keys ###
+        fish_keys_tmp[blowcrypt_unpack(
+            target,
+            fish_lock_cipher)] = blowcrypt_unpack(key,
+                                                  fish_lock_cipher)
+        
+    fish_keys = fish_keys_tmp
 
 
 def fish_lock_command_run_input(data, buffer, command):
