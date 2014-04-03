@@ -7,12 +7,20 @@ http://fish.secure.la/
 
 v0.9
 ----
-To encrypt keys:
+Can use [weechat-secure][weechat secured data] to store keys. To encrypt keys:
 ```
-/blowkey setpw
+/secure set fish *********
+/set fish.secure.key "${sec.data.fish}"
+```
+
+Or you can set a randomly generated key with:
+```
+/blowkey genkey
 ```
 
 To return to storing in plain text:
 ```
-/blowkey unsetpw
+/sec fish.secure.key ""
 ```
+
+[weechat-secure]: http://dev.weechat.org/post/2013/08/04/Secured-data
