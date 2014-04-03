@@ -20,7 +20,7 @@ Or you can set a randomly generated key with:
 
 To return to storing in plain text:
 ```
-/sec fish.secure.key ""
+/set fish.secure.key ""
 ```
 
 [weechat-secure]: http://dev.weechat.org/post/2013/08/04/Secured-data
