@@ -7,7 +7,7 @@ http://fish.secure.la/
 
 v0.9
 ----
-Can use [weechat-secure][weechat secured data] to store keys. To encrypt keys:
+Can use [weechat secured data][weechat-secure] to store keys. To encrypt keys:
 ```
 /secure set fish *********
 /set fish.secure.key "${sec.data.fish}"
