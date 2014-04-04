@@ -946,7 +946,6 @@ def fish_secure():
 
     # if blank, do nothing
     if fish_secure_key == "":
-        weechat.prnt("", "nothing!")
         fish_success()
         return
 
