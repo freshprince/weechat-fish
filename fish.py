@@ -1094,6 +1094,10 @@ def fish_list_keys(buffer):
     global fish_keys
 
     weechat.prnt(buffer, "\tFiSH Keys: form target(server): key")
+    
+    if len(fish_keys) == 0:
+        weechat.prnt(buffer, "NO KEYS!\n")
+        return
 
     for (target, key) in sorted(fish_keys.iteritems()):
         (server, nick) = target.split("/")
