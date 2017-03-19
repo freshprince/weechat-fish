@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #
+# Copyright (C) 2017 Ricardo Ferreira <ricardo.sff@goatse.cx>
 # Copyright (C) 2012 Markus Näsman <markus@botten.org>
 # Copyright (C) 2011-2020 David Flatz <david@upcs.at>
 # Copyright (C) 2009 Bjorn Edstrom <be@bjrn.se>
@@ -890,7 +891,7 @@ def fish_cmd_blowkey(data, buffer, args):
     if argv[0] == "set":
         fish_keys[targetl] = argv2eol
 
-        if target in fish_cyphers:
+        if targetl in fish_cyphers:
             del fish_cyphers[targetl]
 
         weechat.prnt(buffer, "set key for %s to %s" % (target, argv2eol))
