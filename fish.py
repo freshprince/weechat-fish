@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #
+# Copyright (C) 2017 Marcin Kurczewski <rr-@sakuya.pl>
 # Copyright (C) 2017 Ricardo Ferreira <ricardo.sff@goatse.cx>
 # Copyright (C) 2014 Charles Franklin <jakhead@gmail.com>
 # Copyright (C) 2012 Markus Näsman <markus@botten.org>
@@ -53,7 +54,7 @@
 
 SCRIPT_NAME = "fish"
 SCRIPT_AUTHOR = "David Flatz <david@upcs.at>"
-SCRIPT_VERSION = "0.9.1"
+SCRIPT_VERSION = "0.9.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "FiSH for weechat"
 CONFIG_FILE_NAME = SCRIPT_NAME
@@ -791,7 +792,7 @@ def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
         fish_cyphers[targetl] = b
     else:
         b = fish_cyphers[targetl]
-    cypher = blowcrypt_pack(match.group(3), b)
+    cypher = blowcrypt_pack(fish_msg_wo_marker(match.group(3)), b)
 
     fish_announce_encrypted(buffer, target)
 
@@ -827,6 +828,18 @@ def fish_modifier_out_topic_cb(data, modifier, server_name, string):
     fish_announce_encrypted(buffer, target)
 
     return "%s%s" % (match.group(1), cypher)
+
+
+def fish_modifier_input_text(data, modifier, server_name, string):
+    if weechat.string_is_command_char(string):
+        return string
+    buffer = weechat.current_buffer()
+    name = weechat.buffer_get_string(buffer, "name")
+    target = name.replace(".", "/")
+    targetl = target.lower()
+    if targetl not in fish_keys:
+        return string
+    return "%s" % (fish_msg_w_marker(string))
 
 
 def fish_unload_cb():
@@ -1070,6 +1083,16 @@ def fish_msg_w_marker(msg):
         return "%s%s" % (marker, msg)
     else:
         return msg
+
+
+def fish_msg_wo_marker(msg):
+    marker = weechat.config_string(fish_config_option["mark_encrypted"])
+    if weechat.config_string(fish_config_option["mark_position"]) == "end":
+        return msg[0:-len(marker)]
+    elif weechat.config_string(fish_config_option["mark_position"]) == "begin":
+        return msg[len(marker):]
+    else:
+        return msg
 #
 # MAIN
 #
@@ -1113,4 +1136,5 @@ if (__name__ == "__main__" and import_ok and
     weechat.hook_modifier("irc_out_privmsg", "fish_modifier_out_privmsg_cb",
             "")
     weechat.hook_modifier("irc_out_topic", "fish_modifier_out_topic_cb", "")
+    weechat.hook_modifier("input_text_for_buffer", "fish_modifier_input_text", "")
     weechat.hook_config("fish.secure.key", "fish_secure_key_cb", "")
