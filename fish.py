@@ -66,14 +66,14 @@ from os import urandom
 try:
     import weechat
 except ImportError:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 
 try:
     import Crypto.Cipher.Blowfish
 except:
-    print "Python Cryptography Toolkit must be installed to use fish"
+    print("Python Cryptography Toolkit must be installed to use fish")
     import_ok = False
 
 
@@ -116,7 +116,7 @@ def fish_config_keys_write_cb(data, config_file, section_name):
     global fish_keys
 
     weechat.config_write_line(config_file, section_name, "")
-    for target, key in sorted(fish_keys.iteritems()):
+    for target, key in sorted(fish_keys.items()):
         weechat.config_write_line(config_file, target, key)
 
     return weechat.WEECHAT_RC_OK
@@ -220,10 +220,10 @@ def blowcrypt_b64encode(s):
     res = ''
     while s:
         left, right = struct.unpack('>LL', s[:8])
-        for i in xrange(6):
+        for i in range(6):
             res += B64[right & 0x3f]
             right >>= 6
-        for i in xrange(6):
+        for i in range(6):
             res += B64[left & 0x3f]
             left >>= 6
         s = s[8:]
@@ -303,7 +303,7 @@ p_dh1080 = int('FBE1022E23D213E8ACFA9AE8B9DFAD'
                '83EB68FA07A77AB6AD7BEB618ACF9C'
                'A2897EB28A6189EFA07AB99A8A7FA9'
                'AE299EFA7BA66DEAFEFBEFBF0B7D8B', 16)
-q_dh1080 = (p_dh1080 - 1) / 2
+q_dh1080 = (p_dh1080 - 1) // 2
 
 
 def dh1080_b64encode(s):
@@ -456,7 +456,7 @@ def dh1080_unpack(msg, ctx):
                 raise MalformedError
 
             if not dh_validate_public(public, q_dh1080, p_dh1080):
-                #print invalidmsg
+                #print(invalidmsg)
                 pass
 
             ctx.secret = pow(public, ctx.private, p_dh1080)
@@ -475,7 +475,7 @@ def dh1080_unpack(msg, ctx):
                 raise MalformedError
 
             if not dh_validate_public(public, q_dh1080, p_dh1080):
-                #print invalidmsg
+                #print(invalidmsg)
                 pass
 
             ctx.secret = pow(public, ctx.private, p_dh1080)
@@ -926,7 +926,7 @@ def fish_list_keys(buffer):
 
     weechat.prnt(buffer, "\tFiSH Keys: form target(server): key")
 
-    for (target, key) in sorted(fish_keys.iteritems()):
+    for (target, key) in sorted(fish_keys.items()):
         (server, nick) = target.split("/")
         weechat.prnt(buffer, "\t%s(%s): %s" % (nick, server, key))
 
