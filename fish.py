@@ -66,14 +66,14 @@ from os import urandom
 try:
     import weechat
 except ImportError:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 
 try:
     import Crypto.Cipher.Blowfish
 except:
-    print "Python Cryptography Toolkit must be installed to use fish"
+    print("Python Cryptography Toolkit must be installed to use fish")
     import_ok = False
 
 
@@ -116,7 +116,7 @@ def fish_config_keys_write_cb(data, config_file, section_name):
     global fish_keys
 
     weechat.config_write_line(config_file, section_name, "")
-    for target, key in sorted(fish_keys.iteritems()):
+    for target, key in sorted(fish_keys.items()):
         weechat.config_write_line(config_file, target, key)
 
     return weechat.WEECHAT_RC_OK
@@ -210,10 +210,10 @@ def blowcrypt_b64encode(s):
     res = ''
     while s:
         left, right = struct.unpack('>LL', s[:8])
-        for i in xrange(6):
+        for i in range(6):
             res += B64[right & 0x3f]
             right >>= 6
-        for i in xrange(6):
+        for i in range(6):
             res += B64[left & 0x3f]
             left >>= 6
         s = s[8:]
@@ -223,7 +223,7 @@ def blowcrypt_b64encode(s):
 def blowcrypt_b64decode(s):
     """A non-standard base64-decode."""
     B64 = "./0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    res = ''
+    res = []
     while s:
         left, right = 0, 0
         for i, p in enumerate(s[0:6]):
@@ -231,11 +231,11 @@ def blowcrypt_b64decode(s):
         for i, p in enumerate(s[6:12]):
             left |= B64.index(p) << (i * 6)
         for i in range(0,4):
-            res +=chr(((left & (0xFF << ((3 - i) * 8))) >> ((3 - i) * 8)))
+            res.append((left & (0xFF << ((3 - i) * 8))) >> ((3 - i) * 8))
         for i in range(0,4):
-            res +=chr(((right & (0xFF << ((3 - i) * 8))) >> ((3 - i) * 8)))
+            res.append((right & (0xFF << ((3 - i) * 8))) >> ((3 - i) * 8))
         s = s[12:]
-    return res
+    return bytes(res)
 
 
 def padto(msg, length):
@@ -243,7 +243,7 @@ def padto(msg, length):
     If the length of msg is already a multiple of 'length', does nothing."""
     L = len(msg)
     if L % length:
-        msg += '\x00' * (length - L % length)
+        msg += b'\x00' * (length - L % length)
     assert len(msg) % length == 0
     return msg
 
@@ -276,7 +276,7 @@ def blowcrypt_unpack(msg, cipher):
     except ValueError:
         raise MalformedError
 
-    return plain.strip('\x00').replace('\n','')
+    return plain.strip(b'\x00').replace(b'\n',b'')
 
 
 #
@@ -293,7 +293,7 @@ p_dh1080 = int('FBE1022E23D213E8ACFA9AE8B9DFAD'
                '83EB68FA07A77AB6AD7BEB618ACF9C'
                'A2897EB28A6189EFA07AB99A8A7FA9'
                'AE299EFA7BA66DEAFEFBEFBF0B7D8B', 16)
-q_dh1080 = (p_dh1080 - 1) / 2
+q_dh1080 = (p_dh1080 - 1) // 2
 
 
 def dh1080_b64encode(s):
@@ -305,7 +305,7 @@ def dh1080_b64encode(s):
     m = 0x80
     i, j, k, t = 0, 0, 0, 0
     while i < L:
-        if ord(s[i >> 3]) & m:
+        if s[i >> 3] & m:
             t |= 1
         j += 1
         m >>= 1
@@ -344,7 +344,7 @@ def dh1080_b64decode(s):
     L = len(s)
     if L < 2:
         raise ValueError
-    for i in reversed(range(L - 1)):
+    for i in reversed(list(range(L - 1))):
         if buf[ord(s[i])] == 0:
             L -= 1
         else:
@@ -389,7 +389,7 @@ def dh1080_b64decode(s):
         else:
             break
         k += 1
-    return ''.join(map(chr, d[0:i - 1]))
+    return bytes(d[0:i - 1])
 
 
 def dh_validate_public(public, q, p):
@@ -407,7 +407,7 @@ class DH1080Ctx:
 
         bits = 1080
         while True:
-            self.private = bytes2int(urandom(bits / 8))
+            self.private = bytes2int(urandom(bits // 8))
             self.public = pow(g_dh1080, self.private, p_dh1080)
             if 2 <= self.public <= p_dh1080 - 1 and \
                dh_validate_public(self.public, q_dh1080, p_dh1080) == 1:
@@ -487,19 +487,19 @@ def bytes2int(b):
     n = 0
     for p in b:
         n *= 256
-        n += ord(p)
+        n += p
     return n
 
 
 def int2bytes(n):
     """Integer to variable length big endian."""
     if n == 0:
-        return '\x00'
-    b = ''
+        return b'\x00'
+    b = []
     while n:
-        b = chr(n % 256) + b
-        n /= 256
-    return b
+        b.insert(0, n % 256)
+        n //= 256
+    return bytes(b)
 
 
 def sha256(s):
@@ -516,6 +516,9 @@ def sha256(s):
 
 def fish_modifier_in_notice_cb(data, modifier, server_name, string):
     global fish_DH1080ctx, fish_keys, fish_cyphers
+
+    if type(string) is bytes:
+        return string
 
     match = re.match(
         r"^(:(.*?)!.*? NOTICE (.*?) :)((DH1080_INIT |DH1080_FINISH |\+OK |mcps )?.*)$",
@@ -585,7 +588,7 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
         else:
             b = fish_cyphers[targetl]
 
-        clean = blowcrypt_unpack(match.group(4), b)
+        clean = blowcrypt_unpack(match.group(4), b).decode()
 
         fish_announce_encrypted(buffer, target)
 
@@ -598,6 +601,9 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
 
 def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
     global fish_keys, fish_cyphers
+
+    if type(string) is bytes:
+        return string
 
     match = re.match(
         r"^(:(.*?)!.*? PRIVMSG (.*?) :)(\x01ACTION )?((\+OK |mcps )?.*?)(\x01)?$",
@@ -637,7 +643,7 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
         fish_cyphers[targetl] = b
     else:
         b = fish_cyphers[targetl]
-    clean = blowcrypt_unpack(match.group(5), b)
+    clean = blowcrypt_unpack(match.group(5), b).decode()
 
     if not match.group(4):
         return "%s%s" % (match.group(1), clean)
@@ -647,6 +653,9 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
 
 def fish_modifier_in_topic_cb(data, modifier, server_name, string):
     global fish_keys, fish_cyphers
+
+    if type(string) is bytes:
+        return string
 
     match = re.match(r"^(:.*?!.*? TOPIC (.*?) :)((\+OK |mcps )?.*)$", string)
     #match.group(0): message
@@ -672,7 +681,7 @@ def fish_modifier_in_topic_cb(data, modifier, server_name, string):
         fish_cyphers[targetl] = b
     else:
         b = fish_cyphers[targetl]
-    clean = blowcrypt_unpack(match.group(3), b)
+    clean = blowcrypt_unpack(match.group(3), b).decode()
 
     fish_announce_encrypted(buffer, target)
 
@@ -681,6 +690,9 @@ def fish_modifier_in_topic_cb(data, modifier, server_name, string):
 
 def fish_modifier_in_332_cb(data, modifier, server_name, string):
     global fish_keys, fish_cyphers
+
+    if type(string) is bytes:
+        return string
 
     match = re.match(r"^(:.*? 332 .*? (.*?) :)((\+OK |mcps )?.*)$", string)
     if not match:
@@ -702,7 +714,7 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
     else:
         b = fish_cyphers[targetl]
 
-    clean = blowcrypt_unpack(match.group(3), b)
+    clean = blowcrypt_unpack(match.group(3), b).decode()
 
     fish_announce_encrypted(buffer, target)
 
@@ -711,6 +723,9 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
 
 def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
     global fish_keys, fish_cyphers
+
+    if type(string) is bytes:
+        return string
 
     match = re.match(r"^(PRIVMSG (.*?) :)(.*)$", string)
     if not match:
@@ -731,7 +746,7 @@ def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
         fish_cyphers[targetl] = b
     else:
         b = fish_cyphers[targetl]
-    cypher = blowcrypt_pack(match.group(3), b)
+    cypher = blowcrypt_pack(match.group(3).encode(), b)
 
     fish_announce_encrypted(buffer, target)
 
@@ -740,6 +755,9 @@ def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
 
 def fish_modifier_out_topic_cb(data, modifier, server_name, string):
     global fish_keys, fish_cyphers
+
+    if type(string) is bytes:
+        return string
 
     match = re.match(r"^(TOPIC (.*?) :)(.*)$", string)
     if not match:
@@ -762,7 +780,7 @@ def fish_modifier_out_topic_cb(data, modifier, server_name, string):
         fish_cyphers[targetl] = b
     else:
         b = fish_cyphers[targetl]
-    cypher = blowcrypt_pack(match.group(3), b)
+    cypher = blowcrypt_pack(match.group(3).encode(), b)
 
     fish_announce_encrypted(buffer, target)
 
@@ -917,7 +935,7 @@ def fish_list_keys(buffer):
 
     weechat.prnt(buffer, "\tFiSH Keys: form target(server): key")
 
-    for (target, key) in sorted(fish_keys.iteritems()):
+    for (target, key) in sorted(fish_keys.items()):
         (server, nick) = target.split("/")
         weechat.prnt(buffer, "\t%s(%s): %s" % (nick, server, key))
 
