@@ -146,16 +146,6 @@ def fish_config_init():
             "string", "marker for important FiSH messages", "", 0, 0,
             "O<", "O<", 0, "", "", "", "", "", "")
 
-    fish_config_option["mark_position"] = weechat.config_new_option(
-            fish_config_file, fish_config_section["look"], "mark_position",
-            "integer", "put marker for encrypted INCOMING messages at start or end", "off|begin|end",
-            0,2, "off", "off", 0, "", "", "", "", "", "")
-
-    fish_config_option["mark_encrypted"] = weechat.config_new_option(
-            fish_config_file, fish_config_section["look"], "mark_encrypted",
-            "string", "marker for encrypted INCOMING messages", "", 0, 0,
-            "*", "*", 0, "", "", "", "", "", "")
-
     # color
     fish_config_section["color"] = weechat.config_new_section(fish_config_file,
             "color", 0, 0, "", "", "", "", "", "", "", "", "", "")
@@ -599,11 +589,12 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
 
         fish_announce_encrypted(buffer, target)
 
-        return "%s%s" % (match.group(1), fish_msg_w_marker(clean))
+        return "%s%s" % (match.group(1), clean)
 
     fish_announce_unencrypted(buffer, target)
 
     return string
+
 
 def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
     global fish_keys, fish_cyphers
@@ -649,9 +640,9 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
     clean = blowcrypt_unpack(match.group(5), b)
 
     if not match.group(4):
-        return "%s%s" % (match.group(1), fish_msg_w_marker(clean))
+        return "%s%s" % (match.group(1), clean)
 
-    return "%s%s%s\x01" % (match.group(1), match.group(4), fish_msg_w_marker(clean))
+    return "%s%s%s\x01" % (match.group(1), match.group(4), clean)
 
 
 def fish_modifier_in_topic_cb(data, modifier, server_name, string):
@@ -685,7 +676,7 @@ def fish_modifier_in_topic_cb(data, modifier, server_name, string):
 
     fish_announce_encrypted(buffer, target)
 
-    return "%s%s" % (match.group(1), fish_msg_w_marker(clean))
+    return "%s%s" % (match.group(1), clean)
 
 
 def fish_modifier_in_332_cb(data, modifier, server_name, string):
@@ -715,7 +706,7 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
 
     fish_announce_encrypted(buffer, target)
 
-    return "%s%s" % (match.group(1), fish_msg_w_marker(clean))
+    return "%s%s" % (match.group(1), clean)
 
 
 def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
@@ -930,14 +921,7 @@ def fish_list_keys(buffer):
         (server, nick) = target.split("/")
         weechat.prnt(buffer, "\t%s(%s): %s" % (nick, server, key))
 
-def fish_msg_w_marker(msg):
-    marker = weechat.config_string(fish_config_option["mark_encrypted"])
-    if weechat.config_string(fish_config_option["mark_position"]) == "end":
-        return "%s%s" % (msg, marker)
-    elif weechat.config_string(fish_config_option["mark_position"]) == "begin":
-        return "%s%s" % (marker, msg)
-    else:
-        return msg
+
 #
 # MAIN
 #
