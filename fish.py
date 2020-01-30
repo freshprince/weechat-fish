@@ -588,11 +588,11 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
         else:
             b = fish_cyphers[targetl]
 
-        clean = blowcrypt_unpack(match.group(4), b).decode()
+        clean = blowcrypt_unpack(match.group(4), b)
 
         fish_announce_encrypted(buffer, target)
 
-        return "%s%s" % (match.group(1), clean)
+        return b"%s%s" % (match.group(1).encode(), clean)
 
     fish_announce_unencrypted(buffer, target)
 
@@ -643,12 +643,12 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
         fish_cyphers[targetl] = b
     else:
         b = fish_cyphers[targetl]
-    clean = blowcrypt_unpack(match.group(5), b).decode()
+    clean = blowcrypt_unpack(match.group(5), b)
 
     if not match.group(4):
-        return "%s%s" % (match.group(1), clean)
+        return b'%s%s' % (match.group(1).encode(), clean)
 
-    return "%s%s%s\x01" % (match.group(1), match.group(4), clean)
+    return b"%s%s%s\x01" % (match.group(1).encode(), match.group(4).encode(), clean)
 
 
 def fish_modifier_in_topic_cb(data, modifier, server_name, string):
@@ -681,11 +681,11 @@ def fish_modifier_in_topic_cb(data, modifier, server_name, string):
         fish_cyphers[targetl] = b
     else:
         b = fish_cyphers[targetl]
-    clean = blowcrypt_unpack(match.group(3), b).decode()
+    clean = blowcrypt_unpack(match.group(3), b)
 
     fish_announce_encrypted(buffer, target)
 
-    return "%s%s" % (match.group(1), clean)
+    return b"%s%s" % (match.group(1).encode(), clean)
 
 
 def fish_modifier_in_332_cb(data, modifier, server_name, string):
@@ -714,11 +714,11 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
     else:
         b = fish_cyphers[targetl]
 
-    clean = blowcrypt_unpack(match.group(3), b).decode()
+    clean = blowcrypt_unpack(match.group(3), b)
 
     fish_announce_encrypted(buffer, target)
 
-    return "%s%s" % (match.group(1), clean)
+    return b"%s%s" % (match.group(1).encode(), clean)
 
 
 def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
