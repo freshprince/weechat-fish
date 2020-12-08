@@ -61,6 +61,7 @@ import_ok = True
 import re
 import struct
 import hashlib
+import base64
 from os import urandom
 
 try:
@@ -253,28 +254,42 @@ def blowcrypt_pack(msg, cipher):
     return '+OK ' + blowcrypt_b64encode(cipher.encrypt(padto(msg, 8)))
 
 
-def blowcrypt_unpack(msg, cipher):
+def blowcrypt_unpack(msg, cipher, key):
     """."""
     if not (msg.startswith('+OK ') or msg.startswith('mcps ')):
         raise ValueError
     _, rest = msg.split(' ', 1)
-    if len(rest) < 12:
-        raise MalformedError
 
-    if not (len(rest) %12) == 0:
-        rest = rest[:-(len(rest) % 12)]
+    if rest.startswith('*'): # CBC mode
+        rest = rest[1:]
+        raw = base64.b64decode(rest)
 
-    try:
-        raw = blowcrypt_b64decode(padto(rest, 12))
-    except TypeError:
-        raise MalformedError
-    if not raw:
-        raise MalformedError
+        iv = raw[:8]
+        raw = raw[8:]
 
-    try:
-        plain = cipher.decrypt(raw)
-    except ValueError:
-        raise MalformedError
+        cbcCipher = Crypto.Cipher.Blowfish.new(key, 2, iv)
+
+        plain = cbcCipher.decrypt(raw)
+
+    else:
+
+        if len(rest) < 12:
+            raise MalformedError
+
+        if not (len(rest) %12) == 0:
+            rest = rest[:-(len(rest) % 12)]
+
+        try:
+            raw = blowcrypt_b64decode(padto(rest, 12))
+        except TypeError:
+            raise MalformedError
+        if not raw:
+            raise MalformedError
+
+        try:
+            plain = cipher.decrypt(raw)
+        except ValueError:
+            raise MalformedError
 
     return plain.strip(b'\x00').replace(b'\n',b'')
 
@@ -582,14 +597,16 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
             fish_announce_unencrypted(buffer, target)
             return string
 
+        key = fish_keys[targetl]
+
         try:
             if targetl not in fish_cyphers:
-                b = Blowfish(fish_keys[targetl])
+                b = Blowfish(key)
                 fish_cyphers[targetl] = b
             else:
                 b = fish_cyphers[targetl]
 
-            clean = blowcrypt_unpack(match.group(4), b)
+            clean = blowcrypt_unpack(match.group(4), b, key)
 
             fish_announce_encrypted(buffer, target)
 
@@ -641,14 +658,16 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
 
         return string
 
+    key = fish_keys[targetl]
+
     try:
         if targetl not in fish_cyphers:
-            b = Blowfish(fish_keys[targetl])
+            b = Blowfish(key)
             fish_cyphers[targetl] = b
         else:
             b = fish_cyphers[targetl]
 
-        clean = blowcrypt_unpack(match.group(5), b)
+        clean = blowcrypt_unpack(match.group(5), b, key)
 
         fish_announce_encrypted(buffer, target)
 
@@ -688,13 +707,16 @@ def fish_modifier_in_topic_cb(data, modifier, server_name, string):
 
         return string
 
+    key = fish_keys[targetl]
+
     try:
         if targetl not in fish_cyphers:
-            b = Blowfish(fish_keys[targetl])
+            b = Blowfish(key)
             fish_cyphers[targetl] = b
         else:
             b = fish_cyphers[targetl]
-        clean = blowcrypt_unpack(match.group(3), b)
+
+        clean = blowcrypt_unpack(match.group(3), b, key)
 
         fish_announce_encrypted(buffer, target)
 
@@ -725,14 +747,16 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
 
         return string
 
+    key = fish_keys[targetl]
+
     try:
         if targetl not in fish_cyphers:
-            b = Blowfish(fish_keys[targetl])
+            b = Blowfish(key)
             fish_cyphers[targetl] = b
         else:
             b = fish_cyphers[targetl]
 
-        clean = blowcrypt_unpack(match.group(3), b)
+        clean = blowcrypt_unpack(match.group(3), b, key)
 
         fish_announce_encrypted(buffer, target)
 
