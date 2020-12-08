@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Copyright (C) 2012 Markus Näsman <markus@botten.org>
-# Copyright (C) 2011 David Flatz <david@upcs.at>
+# Copyright (C) 2011-2020 David Flatz <david@upcs.at>
 # Copyright (C) 2009 Bjorn Edstrom <be@bjrn.se>
 #
 # This program is free software; you can redistribute it and/or modify
@@ -582,17 +582,22 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
             fish_announce_unencrypted(buffer, target)
             return string
 
-        if targetl not in fish_cyphers:
-            b = Blowfish(fish_keys[targetl])
-            fish_cyphers[targetl] = b
-        else:
-            b = fish_cyphers[targetl]
+        try:
+            if targetl not in fish_cyphers:
+                b = Blowfish(fish_keys[targetl])
+                fish_cyphers[targetl] = b
+            else:
+                b = fish_cyphers[targetl]
 
-        clean = blowcrypt_unpack(match.group(4), b)
+            clean = blowcrypt_unpack(match.group(4), b)
 
-        fish_announce_encrypted(buffer, target)
+            fish_announce_encrypted(buffer, target)
 
-        return b"%s%s" % (match.group(1).encode(), clean)
+            return b"%s%s" % (match.group(1).encode(), clean)
+        except Exception as e:
+            fish_announce_unencrypted(buffer, target)
+
+            raise e
 
     fish_announce_unencrypted(buffer, target)
 
@@ -636,19 +641,26 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
 
         return string
 
-    fish_announce_encrypted(buffer, target)
+    try:
+        if targetl not in fish_cyphers:
+            b = Blowfish(fish_keys[targetl])
+            fish_cyphers[targetl] = b
+        else:
+            b = fish_cyphers[targetl]
 
-    if targetl not in fish_cyphers:
-        b = Blowfish(fish_keys[targetl])
-        fish_cyphers[targetl] = b
-    else:
-        b = fish_cyphers[targetl]
-    clean = blowcrypt_unpack(match.group(5), b)
+        clean = blowcrypt_unpack(match.group(5), b)
 
-    if not match.group(4):
-        return b'%s%s' % (match.group(1).encode(), clean)
+        fish_announce_encrypted(buffer, target)
 
-    return b"%s%s%s\x01" % (match.group(1).encode(), match.group(4).encode(), clean)
+        if not match.group(4):
+            return b'%s%s' % (match.group(1).encode(), clean)
+
+        return b"%s%s%s\x01" % (match.group(1).encode(), match.group(4).encode(), clean)
+
+    except Exception as e:
+        fish_announce_unencrypted(buffer, target)
+
+        raise e
 
 
 def fish_modifier_in_topic_cb(data, modifier, server_name, string):
@@ -676,16 +688,21 @@ def fish_modifier_in_topic_cb(data, modifier, server_name, string):
 
         return string
 
-    if targetl not in fish_cyphers:
-        b = Blowfish(fish_keys[targetl])
-        fish_cyphers[targetl] = b
-    else:
-        b = fish_cyphers[targetl]
-    clean = blowcrypt_unpack(match.group(3), b)
+    try:
+        if targetl not in fish_cyphers:
+            b = Blowfish(fish_keys[targetl])
+            fish_cyphers[targetl] = b
+        else:
+            b = fish_cyphers[targetl]
+        clean = blowcrypt_unpack(match.group(3), b)
 
-    fish_announce_encrypted(buffer, target)
+        fish_announce_encrypted(buffer, target)
 
-    return b"%s%s" % (match.group(1).encode(), clean)
+        return b"%s%s" % (match.group(1).encode(), clean)
+    except Exception as e:
+        fish_announce_unencrypted(buffer, target)
+
+        raise e
 
 
 def fish_modifier_in_332_cb(data, modifier, server_name, string):
@@ -708,17 +725,23 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
 
         return string
 
-    if targetl not in fish_cyphers:
-        b = Blowfish(fish_keys[targetl])
-        fish_cyphers[targetl] = b
-    else:
-        b = fish_cyphers[targetl]
+    try:
+        if targetl not in fish_cyphers:
+            b = Blowfish(fish_keys[targetl])
+            fish_cyphers[targetl] = b
+        else:
+            b = fish_cyphers[targetl]
 
-    clean = blowcrypt_unpack(match.group(3), b)
+        clean = blowcrypt_unpack(match.group(3), b)
 
-    fish_announce_encrypted(buffer, target)
+        fish_announce_encrypted(buffer, target)
 
-    return b"%s%s" % (match.group(1).encode(), clean)
+        return b"%s%s" % (match.group(1).encode(), clean)
+    except Exception as e:
+        fish_announce_unencrypted(buffer, target)
+
+        raise e
+
 
 
 def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
