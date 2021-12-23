@@ -195,7 +195,7 @@ class Blowfish:
         if key:
             if len(key) > 72:
                 key = key[:72]
-            self.blowfish = Crypto.Cipher.Blowfish.new(key)
+            self.blowfish = Crypto.Cipher.Blowfish.new(key.encode('utf-8'), Crypto.Cipher.Blowfish.MODE_ECB)
 
     def decrypt(self, data):
         return self.blowfish.decrypt(data)
@@ -267,7 +267,7 @@ def blowcrypt_unpack(msg, cipher, key):
         iv = raw[:8]
         raw = raw[8:]
 
-        cbcCipher = Crypto.Cipher.Blowfish.new(key, 2, iv)
+        cbcCipher = Crypto.Cipher.Blowfish.new(key.encode('utf-8'), Crypto.Cipher.Blowfish.MODE_CBC, iv)
 
         plain = cbcCipher.decrypt(raw)
 
