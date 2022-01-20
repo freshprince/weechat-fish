@@ -140,7 +140,7 @@ def fish_config_init():
 
     fish_config_option["announce"] = weechat.config_new_option(
             fish_config_file, fish_config_section["look"], "announce",
-            "boolean", "annouce if messages are being encrypted or not", "", 0,
+            "boolean", "announce if messages are being encrypted or not", "", 0,
             0, "on", "on", 0, "", "", "", "", "", "")
     fish_config_option["marker"] = weechat.config_new_option(
             fish_config_file, fish_config_section["look"], "marker",
@@ -560,7 +560,7 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
             fish_announce_unencrypted(buffer, target)
             return string
 
-        fish_alert(buffer, "Key exchange for %s sucessful" % target)
+        fish_alert(buffer, "Key exchange for %s successful" % target)
 
         fish_keys[targetl] = dh1080_secret(fish_DH1080ctx[targetl])
         if targetl in fish_cyphers:
