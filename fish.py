@@ -952,7 +952,19 @@ def fish_secure():
 
         else:
             global SCRIPT_NAME
-            fish_secure_error()
+            message = ("\n%s%sblowkey:%s unable to recover key from sec.conf\n"
+                       "%s%sblowkey:%s fish.py %sNOT LOADED\n"
+                       "%s%sblowkey:%s decrypt secured data first\n"
+                       "%s%sblowkey:%s then reload fish.py\n\n") % (
+                               weechat.prefix("error"), weechat.color("underline"),
+                               weechat.color("reset"), weechat.prefix("error"),
+                               weechat.color("underline"), weechat.color("reset"),
+                               weechat.color("*red"), weechat.prefix("error"),
+                               weechat.color("underline"), weechat.color("reset"),
+                               weechat.prefix("error"), weechat.color("underline"),
+                               weechat.color("reset"))
+
+            weechat.prnt("", "%s" % message)
             weechat.command(weechat.current_buffer(),
                             "/wait 1ms /python unload %s" % SCRIPT_NAME)
             return
@@ -976,24 +988,6 @@ def fish_decrypt_keys():
                     fish_secure_cipher)
 
     fish_keys = fish_keys_tmp
-
-
-def fish_secure_error():
-    """print error message if secdata not decrypted"""
-
-    message = ("\n%s%sblowkey:%s unable to recover key from sec.conf\n"
-               "%s%sblowkey:%s fish.py %sNOT LOADED\n"
-               "%s%sblowkey:%s decrypt secured data first\n"
-               "%s%sblowkey:%s then reload fish.py\n\n") % (
-                       weechat.prefix("error"), weechat.color("underline"),
-                       weechat.color("reset"), weechat.prefix("error"),
-                       weechat.color("underline"), weechat.color("reset"),
-                       weechat.color("*red"), weechat.prefix("error"),
-                       weechat.color("underline"), weechat.color("reset"),
-                       weechat.prefix("error"), weechat.color("underline"),
-                       weechat.color("reset"))
-
-    weechat.prnt("", "%s" % message)
 
 
 def fish_secure_genkey(buffer):
