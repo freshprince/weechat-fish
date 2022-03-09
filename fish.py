@@ -120,13 +120,10 @@ def fish_config_keys_write_cb(data, config_file, section_name):
 
     weechat.config_write_line(config_file, section_name, "")
     for target, key in sorted(fish_keys.iteritems()):
-
         if fish_secure_cipher != None:
-            ### ENCRYPT Targets/Keys ###
-            weechat.config_write_line(config_file,
-                                      blowcrypt_pack(target, fish_secure_cipher),
-                                      blowcrypt_pack(key, fish_secure_cipher))
-
+            weechat.config_write_line(
+                    config_file, blowcrypt_pack(target, fish_secure_cipher),
+                    blowcrypt_pack(key, fish_secure_cipher))
         else:
             weechat.config_write_line(config_file, target, key)
 
@@ -144,31 +141,30 @@ def fish_config_init():
 
     # look
     fish_config_section["look"] = weechat.config_new_section(fish_config_file,
-        "look", 0, 0, "", "", "", "", "", "", "", "", "", "")
+            "look", 0, 0, "", "", "", "", "", "", "", "", "", "")
     if not fish_config_section["look"]:
         weechat.config_free(fish_config_file)
         return
 
     fish_config_option["announce"] = weechat.config_new_option(
-        fish_config_file, fish_config_section["look"], "announce",
-        "boolean", "annouce if messages are being encrypted or not", "", 0,
-        0, "on", "on", 0, "", "", "", "", "", "")
-
+            fish_config_file, fish_config_section["look"], "announce",
+            "boolean", "annouce if messages are being encrypted or not", "", 0,
+            0, "on", "on", 0, "", "", "", "", "", "")
     fish_config_option["marker"] = weechat.config_new_option(
-        fish_config_file, fish_config_section["look"], "marker",
-        "string", "marker for important FiSH messages", "", 0, 0,
-        "O<", "O<", 0, "", "", "", "", "", "")
+            fish_config_file, fish_config_section["look"], "marker",
+            "string", "marker for important FiSH messages", "", 0, 0,
+            "O<", "O<", 0, "", "", "", "", "", "")
 
     fish_config_option["mark_position"] = weechat.config_new_option(
-        fish_config_file, fish_config_section["look"], "mark_position",
-        "integer", "put marker for encrypted INCOMING messages at start or end",
-        "off|begin|end",
-        0,2, "off", "off", 0, "", "", "", "", "", "")
+            fish_config_file, fish_config_section["look"], "mark_position",
+            "integer", "put marker for encrypted INCOMING messages at start or end",
+            "off|begin|end",
+            0,2, "off", "off", 0, "", "", "", "", "", "")
 
     fish_config_option["mark_encrypted"] = weechat.config_new_option(
-        fish_config_file, fish_config_section["look"], "mark_encrypted",
-        "string", "marker for encrypted INCOMING messages", "", 0, 0,
-        "*", "*", 0, "", "", "", "", "", "")
+            fish_config_file, fish_config_section["look"], "mark_encrypted",
+            "string", "marker for encrypted INCOMING messages", "", 0, 0,
+            "*", "*", 0, "", "", "", "", "", "")
 
     # color
     fish_config_section["color"] = weechat.config_new_section(fish_config_file,
@@ -178,9 +174,9 @@ def fish_config_init():
         return
 
     fish_config_option["alert"] = weechat.config_new_option(
-        fish_config_file, fish_config_section["color"], "alert",
-        "color", "color for important FiSH message markers", "", 0, 0,
-        "lightblue", "lightblue", 0, "", "", "", "", "", "")
+            fish_config_file, fish_config_section["color"], "alert",
+            "color", "color for important FiSH message markers", "", 0, 0,
+            "lightblue", "lightblue", 0, "", "", "", "", "", "")
 
     # secure
     fish_config_section["secure"] = weechat.config_new_section(fish_config_file,
@@ -190,16 +186,16 @@ def fish_config_init():
         return
 
     fish_config_option["key"] = weechat.config_new_option(
-        fish_config_file, fish_config_section["secure"], "key",
-        "string", "key for securing blowfish keys", "", 0, 0, "", "",
-        0, "", "", "", "", "", "")
+            fish_config_file, fish_config_section["secure"], "key",
+            "string", "key for securing blowfish keys", "", 0, 0, "", "",
+            0, "", "", "", "", "", "")
 
     # keys
     fish_config_section["keys"] = weechat.config_new_section(fish_config_file,
-        "keys", 0, 0,
-        "fish_config_keys_read_cb", "",
-        "fish_config_keys_write_cb", "", "",
-        "", "", "", "", "")
+            "keys", 0, 0,
+            "fish_config_keys_read_cb", "",
+            "fish_config_keys_write_cb", "", "",
+            "", "", "", "", "")
     if not fish_config_section["keys"]:
         weechat.config_free(fish_config_file)
         return
@@ -554,17 +550,14 @@ def fish_secure_key_cb(data, option, value):
     global fish_secure_key, fish_secure_cipher
 
     fish_secure_key = weechat.config_string(
-        weechat.config_get("fish.secure.key")
-    )
+            weechat.config_get("fish.secure.key"))
 
     if fish_secure_key == "":
         fish_secure_cipher = None
         return weechat.WEECHAT_RC_OK
 
     if fish_secure_key[:6] == "${sec.":
-        decrypted = weechat.string_eval_expression(
-            fish_secure_key, {}, {}, {}
-        )
+        decrypted = weechat.string_eval_expression(fish_secure_key, {}, {}, {})
         if decrypted:
             fish_secure_cipher = Blowfish(decrypted)
             return weechat.WEECHAT_RC_OK
@@ -590,7 +583,7 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
     #match.group(2): source
     #match.group(3): target
     #match.group(4): msg
-    #match.group(5): DH1080_INIT |DH1080_FINISH
+    #match.group(5): DH1080_INIT |DH1080_FINISH 
     if not match or not match.group(5):
         return string
 
@@ -673,7 +666,7 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
     #match.group(3): target
     #match.group(4): action
     #match.group(5): msg
-    #match.group(6): +OK |mcps
+    #match.group(6): +OK |mcps 
     if not match:
         return string
 
@@ -718,7 +711,7 @@ def fish_modifier_in_topic_cb(data, modifier, server_name, string):
     #match.group(1): msg without payload
     #match.group(2): channel
     #match.group(3): topic
-    #match.group(4): +OK |mcps
+    #match.group(4): +OK |mcps 
     if not match:
         return string
 
@@ -772,6 +765,7 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
     fish_announce_encrypted(buffer, target)
 
     return "%s%s" % (match.group(1), fish_msg_w_marker(clean))
+
 
 
 def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
@@ -845,8 +839,8 @@ def fish_unload_cb():
 #
 
 def fish_cmd_blowkey(data, buffer, args):
-    global fish_keys, fish_cyphers, fish_DH1080ctx
-    global fish_config_option, fish_secure_cipher
+    global fish_keys, fish_cyphers, fish_DH1080ctx, fish_config_option
+    global fish_secure_cipher
 
     if args == "" or args == "list":
         fish_list_keys(buffer)
@@ -855,6 +849,7 @@ def fish_cmd_blowkey(data, buffer, args):
 
     elif args =="genkey":
         fish_secure_genkey(buffer)
+
         return weechat.WEECHAT_RC_OK
 
     argv = args.split(" ")
@@ -929,15 +924,12 @@ def fish_cmd_blowkey(data, buffer, args):
 
         return weechat.WEECHAT_RC_OK
 
-
-
     return weechat.WEECHAT_RC_ERROR
 
 
 #
 # HELPERS
 #
-
 
 def fish_secure():
     global fish_secure_key, fish_secure_cipher
@@ -952,9 +944,7 @@ def fish_secure():
     # if ${sec.data.fish}, check if sec.conf is decrypted
     # and decrypt
     elif fish_secure_key[:6] == "${sec.":
-        decrypted = weechat.string_eval_expression(
-            fish_secure_key, {}, {}, {}
-        )
+        decrypted = weechat.string_eval_expression(fish_secure_key, {}, {}, {})
 
         if decrypted:
             fish_secure_cipher = Blowfish(decrypted)
@@ -984,21 +974,16 @@ def fish_decrypt_keys():
 
     fish_keys_tmp = {}
     for target, key in fish_keys.iteritems():
-        ### DECRYPT Targets/Keys ###
         fish_keys_tmp[blowcrypt_unpack(
-            target,
-            fish_secure_cipher)] = blowcrypt_unpack(key,
-                                                  fish_secure_cipher)
+            target, fish_secure_cipher)] = blowcrypt_unpack(key,
+                    fish_secure_cipher)
 
     fish_keys = fish_keys_tmp
 
 
 def fish_success():
-    weechat.prnt("",
-                 "%s%sblowkey: succesfully loaded\n" % (
-                     weechat.prefix("join"),
-                     weechat.color("_green"))
-    )
+    weechat.prnt("", "%s%sblowkey: succesfully loaded\n" % (
+        weechat.prefix("join"), weechat.color("_green")))
 
 
 def fish_secure_error():
@@ -1008,20 +993,13 @@ def fish_secure_error():
                "%s%sblowkey:%s fish.py %sNOT LOADED\n"
                "%s%sblowkey:%s decrypt secured data first\n"
                "%s%sblowkey:%s then reload fish.py\n\n") % (
-                   weechat.prefix("error"),
-                   weechat.color("underline"),
-                   weechat.color("reset"),
-                   weechat.prefix("error"),
-                   weechat.color("underline"),
-                   weechat.color("reset"),
-                   weechat.color("*red"),
-                   weechat.prefix("error"),
-                   weechat.color("underline"),
-                   weechat.color("reset"),
-                   weechat.prefix("error"),
-                   weechat.color("underline"),
-                   weechat.color("reset")
-               )
+                       weechat.prefix("error"), weechat.color("underline"),
+                       weechat.color("reset"), weechat.prefix("error"),
+                       weechat.color("underline"), weechat.color("reset"),
+                       weechat.color("*red"), weechat.prefix("error"),
+                       weechat.color("underline"), weechat.color("reset"),
+                       weechat.prefix("error"), weechat.color("underline"),
+                       weechat.color("reset"))
 
     weechat.prnt("", "%s" % message)
 
@@ -1033,9 +1011,7 @@ def fish_secure_genkey(buffer):
 
     # test to see if sec.conf decrypted
     weechat.command(buffer, "/secure set fish test")
-    decrypted = weechat.string_eval_expression(
-        "${sec.data.fish}", {}, {}, {}
-    )
+    decrypted = weechat.string_eval_expression( "${sec.data.fish}", {}, {}, {})
 
     if decrypted == "test":
         weechat.config_option_set(fish_config_option["key"],
@@ -1048,7 +1024,7 @@ def fish_announce_encrypted(buffer, target):
     global fish_encryption_announced, fish_config_option
 
     if (not weechat.config_boolean(fish_config_option['announce']) or
-        fish_encryption_announced.get(target)):
+            fish_encryption_announced.get(target)):
         return
 
     (server, nick) = target.split("/")
@@ -1094,7 +1070,7 @@ def fish_list_keys(buffer):
     global fish_keys
 
     weechat.prnt(buffer, "\tFiSH Keys: form target(server): key")
-    
+
     if len(fish_keys) == 0:
         weechat.prnt(buffer, "NO KEYS!\n")
         return
@@ -1102,7 +1078,6 @@ def fish_list_keys(buffer):
     for (target, key) in sorted(fish_keys.iteritems()):
         (server, nick) = target.split("/")
         weechat.prnt(buffer, "\t%s(%s): %s" % (nick, server, key))
-
 
 def fish_msg_w_marker(msg):
     marker = weechat.config_string(fish_config_option["mark_encrypted"])
@@ -1153,6 +1128,7 @@ if (__name__ == "__main__" and import_ok and
     weechat.hook_modifier("irc_in_privmsg", "fish_modifier_in_privmsg_cb", "")
     weechat.hook_modifier("irc_in_topic", "fish_modifier_in_topic_cb", "")
     weechat.hook_modifier("irc_in_332", "fish_modifier_in_332_cb", "")
-    weechat.hook_modifier("irc_out_privmsg", "fish_modifier_out_privmsg_cb", "")
+    weechat.hook_modifier("irc_out_privmsg", "fish_modifier_out_privmsg_cb",
+            "")
     weechat.hook_modifier("irc_out_topic", "fish_modifier_out_topic_cb", "")
     weechat.hook_config("fish.secure.key", "fish_secure_key_cb", "")
