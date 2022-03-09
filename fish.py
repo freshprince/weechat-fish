@@ -938,7 +938,6 @@ def fish_secure():
 
     # if blank, do nothing
     if fish_secure_key == "":
-        fish_success()
         return
 
     # if ${sec.data.fish}, check if sec.conf is decrypted
@@ -949,7 +948,6 @@ def fish_secure():
         if decrypted:
             fish_secure_cipher = Blowfish(decrypted)
             fish_decrypt_keys()
-            fish_success()
             return
 
         else:
@@ -964,7 +962,6 @@ def fish_secure():
     if fish_secure_key != "":
         fish_secure_cipher = Blowfish(fish_secure_key)
         fish_decrypt_keys()
-        fish_success()
         return
 
 
@@ -979,11 +976,6 @@ def fish_decrypt_keys():
                     fish_secure_cipher)
 
     fish_keys = fish_keys_tmp
-
-
-def fish_success():
-    weechat.prnt("", "%s%sblowkey: succesfully loaded\n" % (
-        weechat.prefix("join"), weechat.color("_green")))
 
 
 def fish_secure_error():
@@ -1070,10 +1062,6 @@ def fish_list_keys(buffer):
     global fish_keys
 
     weechat.prnt(buffer, "\tFiSH Keys: form target(server): key")
-
-    if len(fish_keys) == 0:
-        weechat.prnt(buffer, "NO KEYS!\n")
-        return
 
     for (target, key) in sorted(fish_keys.iteritems()):
         (server, nick) = target.split("/")
