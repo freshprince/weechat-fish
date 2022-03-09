@@ -446,10 +446,6 @@ def dh1080_unpack(msg, ctx):
     if not msg.startswith("DH1080_"):
         raise ValueError
 
-    invalidmsg = "Key does not validate per RFC 2631. This check is not " \
-                 "performed by any DH1080 implementation, so we use the key " \
-                 "anyway. See RFC 2785 for more details."
-
     if ctx.state == 0:
         if not msg.startswith("DH1080_INIT "):
             raise MalformedError
@@ -460,10 +456,6 @@ def dh1080_unpack(msg, ctx):
 
             if not 1 < public < p_dh1080:
                 raise MalformedError
-
-            if not dh_validate_public(public, q_dh1080, p_dh1080):
-                #print invalidmsg
-                pass
 
             ctx.secret = pow(public, ctx.private, p_dh1080)
         except:
@@ -479,10 +471,6 @@ def dh1080_unpack(msg, ctx):
 
             if not 1 < public < p_dh1080:
                 raise MalformedError
-
-            if not dh_validate_public(public, q_dh1080, p_dh1080):
-                #print invalidmsg
-                pass
 
             ctx.secret = pow(public, ctx.private, p_dh1080)
         except:
