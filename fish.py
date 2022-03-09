@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Copyright (C) 2011-2022 David Flatz <david@upcs.at>
-# Copyright (C) 2017 Marcin Kurczewski <rr-@sakuya.pl>
+# Copyright (C) 2017-2020 Marcin Kurczewski <rr-@sakuya.pl>
 # Copyright (C) 2017 Ricardo Ferreira <ricardo.sff@goatse.cx>
 # Copyright (C) 2014 Charles Franklin <jakhead@gmail.com>
 # Copyright (C) 2012 Markus Näsman <markus@botten.org>
@@ -71,7 +71,7 @@ try:
     import weechat
 except ImportError:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     import_ok = False
 
 try:
@@ -523,22 +523,12 @@ def dh1080_secret(ctx):
 
 def bytes2int(b):
     """Variable length big endian to integer."""
-    n = 0
-    for p in b:
-        n *= 256
-        n += p
-    return n
+    return int.from_bytes(b, byteorder='big')
 
 
 def int2bytes(n):
     """Integer to variable length big endian."""
-    if n == 0:
-        return b'\x00'
-    b = []
-    while n:
-        b.insert(0, n % 256)
-        n //= 256
-    return bytes(b)
+    return n.to_bytes((n.bit_length() + 7) // 8, byteorder='big')
 
 
 def sha256(s):
