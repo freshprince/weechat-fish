@@ -1084,11 +1084,12 @@ if (__name__ == "__main__" and import_ok and
             SCRIPT_LICENSE, SCRIPT_DESC, "fish_unload_cb", "")):
 
     weechat.hook_command("blowkey", "Manage FiSH keys",
-            "[list] | [genkey] |set [-server <server>] [<target>] <key> "
+            "[list] | set [-server <server>] [<target>] <key> "
             "| remove [-server <server>] <target> "
-            "| exchange [-server <server>] [<nick>]",
-            "Add, change or remove key for target or perform DH1080\n"
-            "keyexchange with <nick>.\n"
+            "| exchange [-server <server>] [<nick>] "
+            "| genkey",
+            "Add, change or remove key for target or perform DH1080 key"
+            "exchange with <nick>.\n"
             "Target can be a channel or a nick.\n"
             "\n"
             "Without arguments this command lists all keys.\n"
@@ -1097,15 +1098,13 @@ if (__name__ == "__main__" and import_ok and
             "Set the key for a channel: /blowkey set -server freenet #blowfish key\n"
             "Remove the key:            /blowkey remove #blowfish\n"
             "Set the key for a query:   /blowkey set nick secret+key\n"
-            "List all keys:             /blowkey\n\n"
-            "\n** stores keys in plaintext by default **\n\n"
+            "List all keys:             /blowkey\n"
             "DH1080:                    /blowkey exchange nick\n"
             "\nPlease read the source for a note about DH1080 key exchange\n",
-            "list"
-            "|| genkey"
-            "|| set %(irc_channel)|%(nicks)|-server %(irc_servers) %- "
+            "list || set %(irc_channel)|%(nicks)|-server %(irc_servers) %- "
             "|| remove %(irc_channel)|%(nicks)|-server %(irc_servers) %- "
-            "|| exchange %(nick)|-server %(irc_servers) %-",
+            "|| exchange %(nick)|-server %(irc_servers) %-"
+            "|| genkey",
             "fish_cmd_blowkey", "")
 
     fish_config_init()
