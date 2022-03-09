@@ -278,7 +278,7 @@ def blowcrypt_unpack(msg, cipher, key):
     else:
 
         if len(rest) < 12:
-            raise MalformedError
+            raise ValueError
 
         if not (len(rest) % 12) == 0:
             rest = rest[:-(len(rest) % 12)]
@@ -286,14 +286,11 @@ def blowcrypt_unpack(msg, cipher, key):
         try:
             raw = blowcrypt_b64decode(padto(rest, 12))
         except TypeError:
-            raise MalformedError
+            raise ValueError
         if not raw:
-            raise MalformedError
+            raise ValueError
 
-        try:
-            plain = cipher.decrypt(raw)
-        except ValueError:
-            raise MalformedError
+        plain = cipher.decrypt(raw)
 
     return plain.strip(b'\x00').replace(b'\n', b'')
 
@@ -451,33 +448,33 @@ def dh1080_unpack(msg, ctx):
 
     if ctx.state == 0:
         if not msg.startswith("DH1080_INIT "):
-            raise MalformedError
+            raise ValueError
         ctx.state = 1
         try:
             cmd, public_raw = msg.split(' ', 1)
             public = bytes2int(dh1080_b64decode(public_raw))
 
             if not 1 < public < p_dh1080:
-                raise MalformedError
+                raise ValueError
 
             ctx.secret = pow(public, ctx.private, p_dh1080)
         except Exception:
-            raise MalformedError
+            raise ValueError
 
     elif ctx.state == 1:
         if not msg.startswith("DH1080_FINISH "):
-            raise MalformedError
+            raise ValueError
         ctx.state = 1
         try:
             cmd, public_raw = msg.split(' ', 1)
             public = bytes2int(dh1080_b64decode(public_raw))
 
             if not 1 < public < p_dh1080:
-                raise MalformedError
+                raise ValueError
 
             ctx.secret = pow(public, ctx.private, p_dh1080)
         except Exception:
-            raise MalformedError
+            raise ValueError
 
     return True
 
