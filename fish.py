@@ -54,6 +54,7 @@ import re
 import struct
 import hashlib
 import base64
+import sys
 from os import urandom
 
 SCRIPT_NAME = "fish"
@@ -1025,3 +1026,7 @@ if (__name__ == "__main__" and import_ok and
     weechat.hook_modifier(
             "irc_out_privmsg", "fish_modifier_out_privmsg_cb", "")
     weechat.hook_modifier("irc_out_topic", "fish_modifier_out_topic_cb", "")
+elif (__name__ == "__main__" and len(sys.argv) == 3):
+    key = sys.argv[1]
+    msg = sys.argv[2]
+    print(blowcrypt_unpack(msg, Blowfish(key), key))
