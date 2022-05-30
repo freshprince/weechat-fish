@@ -266,6 +266,8 @@ def blowcrypt_unpack(msg, cipher, key):
 
     if rest.startswith('*'):  # CBC mode
         rest = rest[1:]
+        if len(rest) % 4:
+            rest += '=' * (4 - len(rest) % 4)
         raw = base64.b64decode(rest)
 
         iv = raw[:8]
@@ -274,7 +276,7 @@ def blowcrypt_unpack(msg, cipher, key):
         cbcCipher = Crypto.Cipher.Blowfish.new(
                 key.encode('utf-8'), Crypto.Cipher.Blowfish.MODE_CBC, iv)
 
-        plain = cbcCipher.decrypt(raw)
+        plain = cbcCipher.decrypt(padto(raw, 8))
 
     else:
 
