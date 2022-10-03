@@ -528,7 +528,7 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
         return string
 
     match = re.match(
-        r"^(:(.*?)!.*? NOTICE (.*?) :)"
+        r"^((?:@[^ ]* )?:(.*?)!.*? NOTICE (.*?) :)"
         r"((DH1080_INIT |DH1080_FINISH |\+OK |mcps )?.*)$",
         string)
     # match.group(0): message
@@ -621,7 +621,7 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
         return string
 
     match = re.match(
-        r"^(:(.*?)!.*? PRIVMSG (.*?) :)(\x01ACTION )?"
+        r"^((?:@[^ ]* )?:(.*?)!.*? PRIVMSG (.*?) :)(\x01ACTION )?"
         r"((\+OK |mcps )?.*?)(\x01)?$",
         string)
     # match.group(0): message
@@ -683,7 +683,7 @@ def fish_modifier_in_topic_cb(data, modifier, server_name, string):
     if type(string) is bytes:
         return string
 
-    match = re.match(r"^(:.*?!.*? TOPIC (.*?) :)((\+OK |mcps )?.*)$", string)
+    match = re.match(r"^((?:@[^ ]* )?:.*?!.*? TOPIC (.*?) :)((\+OK |mcps )?.*)$", string)
     # match.group(0): message
     # match.group(1): msg without payload
     # match.group(2): channel
@@ -728,7 +728,7 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
     if type(string) is bytes:
         return string
 
-    match = re.match(r"^(:.*? 332 .*? (.*?) :)((\+OK |mcps )?.*)$", string)
+    match = re.match(r"^((?:@[^ ]* )?:.*? 332 .*? (.*?) :)((\+OK |mcps )?.*)$", string)
     if not match:
         return string
 
