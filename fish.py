@@ -74,10 +74,13 @@ except ImportError:
     import_ok = False
 
 try:
-    import Crypto.Cipher.Blowfish
+    import Crypto.Cipher.Blowfish as CryptoBlowfish
 except ImportError:
-    print("Python Cryptography Toolkit must be installed to use fish")
-    import_ok = False
+    try:
+        import Cryptodome.Cipher.Blowfish as CryptoBlowfish
+    except ImportError:
+        print("Pycryptodome must be installed to use fish")
+        import_ok = False
 
 
 #
@@ -198,8 +201,8 @@ class Blowfish:
         if key:
             if len(key) > 72:
                 key = key[:72]
-            self.blowfish = Crypto.Cipher.Blowfish.new(
-                    key.encode('utf-8'), Crypto.Cipher.Blowfish.MODE_ECB)
+            self.blowfish = CryptoBlowfish.new(
+                    key.encode('utf-8'), CryptoBlowfish.MODE_ECB)
 
     def decrypt(self, data):
         return self.blowfish.decrypt(data)
@@ -273,8 +276,8 @@ def blowcrypt_unpack(msg, cipher, key):
         iv = raw[:8]
         raw = raw[8:]
 
-        cbcCipher = Crypto.Cipher.Blowfish.new(
-                key.encode('utf-8'), Crypto.Cipher.Blowfish.MODE_CBC, iv)
+        cbcCipher = CryptoBlowfish.new(
+                key.encode('utf-8'), CryptoBlowfish.MODE_CBC, iv)
 
         plain = cbcCipher.decrypt(padto(raw, 8))
 
