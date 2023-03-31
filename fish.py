@@ -131,8 +131,8 @@ def fish_config_keys_write_cb(data, config_file, section_name):
     for target, key in sorted(fish_keys.items()):
         if fish_secure_cipher is not None:
             weechat.config_write_line(
-                    config_file, blowcrypt_pack(target, fish_secure_cipher),
-                    blowcrypt_pack(key, fish_secure_cipher))
+                    config_file, blowcrypt_pack(target.encode(), fish_secure_cipher),
+                    blowcrypt_pack(key.encode(), fish_secure_cipher))
         else:
             weechat.config_write_line(config_file, target, key)
 
