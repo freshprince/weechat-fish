@@ -894,7 +894,7 @@ def fish_modifier_input_text(data, modifier, server_name, string):
     targetl = target.lower()
     if targetl not in fish_keys:
         return string
-    return "%s" % (fish_msg_w_marker(string))
+    return "%s" % (fish_msg_w_marker(string.encode()).decode())
 
 
 def fish_unload_cb():
@@ -1141,9 +1141,9 @@ def fish_list_keys(buffer):
 def fish_msg_w_marker(msg):
     marker = weechat.config_string(fish_config_option["mark_encrypted"])
     if weechat.config_string(fish_config_option["mark_position"]) == "end":
-        return "%s%s" % (msg, marker)
+        return b"%s%s" % (msg, marker.encode())
     elif weechat.config_string(fish_config_option["mark_position"]) == "begin":
-        return "%s%s" % (marker, msg)
+        return b"%s%s" % (marker.encode(), msg)
     else:
         return msg
 
