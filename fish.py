@@ -91,6 +91,7 @@ fish_config_file = None
 fish_config_section = {}
 fish_config_option = {}
 fish_keys = {}
+fish_cbc = {}
 fish_cyphers = {}
 fish_DH1080ctx = {}
 fish_encryption_announced = {}
@@ -114,6 +115,10 @@ def fish_config_keys_read_cb(data, config_file, section_name, option_name,
     if not option:
         return weechat.WEECHAT_CONFIG_OPTION_SET_ERROR
 
+    if value.startswith('cbc:'):
+        fish_cbc[option_name] = True
+        value = value[4:]
+
     fish_keys[option_name] = value
 
     return weechat.WEECHAT_CONFIG_OPTION_SET_OK_CHANGED
@@ -124,6 +129,8 @@ def fish_config_keys_write_cb(data, config_file, section_name):
 
     weechat.config_write_line(config_file, section_name, "")
     for target, key in sorted(fish_keys.items()):
+        if fish_cbc.get(target, False):
+            key = 'cbc:' + key
         weechat.config_write_line(config_file, target, key)
 
     return weechat.WEECHAT_RC_OK
@@ -256,9 +263,14 @@ def padto(msg, length):
     return msg
 
 
-def blowcrypt_pack(msg, cipher):
+def blowcrypt_pack(msg, cipher, cbcKey=None):
     """."""
-    return '+OK ' + blowcrypt_b64encode(cipher.encrypt(padto(msg, 8)))
+    if cbcKey is not None: # CBC mode
+        cbcCipher = CryptoBlowfish.new(
+                cbcKey.encode('utf-8'), CryptoBlowfish.MODE_CBC)
+        return '+OK *'+ base64.b64encode(cbcCipher.iv + cbcCipher.encrypt(padto(msg, 8))).decode('utf-8')
+    else:
+        return '+OK ' + blowcrypt_b64encode(cipher.encrypt(padto(msg, 8)))
 
 
 def blowcrypt_unpack(msg, cipher, key):
@@ -790,7 +802,11 @@ def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
         fish_cyphers[targetl] = b
     else:
         b = fish_cyphers[targetl]
-    cypher = blowcrypt_pack(match.group(3).encode(), b)
+    if fish_cbc.get(targetl, False):
+        cbcKey = fish_keys[targetl]
+    else:
+        cbcKey = None
+    cypher = blowcrypt_pack(match.group(3).encode(), b, cbcKey)
 
     fish_announce_encrypted(buffer, target)
 
@@ -824,7 +840,11 @@ def fish_modifier_out_topic_cb(data, modifier, server_name, string):
         fish_cyphers[targetl] = b
     else:
         b = fish_cyphers[targetl]
-    cypher = blowcrypt_pack(match.group(3).encode(), b)
+    if fish_cbc.get(targetl, False):
+        cbcKey = fish_keys[targetl]
+    else:
+        cbcKey = None
+    cypher = blowcrypt_pack(match.group(3).encode(), b, cbcKey)
 
     fish_announce_encrypted(buffer, target)
 
@@ -888,12 +908,22 @@ def fish_cmd_blowkey(data, buffer, args):
     targetl = ("%s/%s" % (server_name, target_user)).lower()
 
     if argv[0] == "set":
+        if argv2eol.startswith('cbc:'):
+            fish_cbc[targetl] = True
+            argv2eol = argv2eol[4:]
+        elif targetl in fish_cbc:
+            del fish_cbc[targetl]
         fish_keys[targetl] = argv2eol
 
         if targetl in fish_cyphers:
             del fish_cyphers[targetl]
 
-        weechat.prnt(buffer, "set key for %s to %s" % (target, argv2eol))
+        if fish_cbc.get(targetl, False):
+            cbcNote = " (cbc)"
+        else:
+            cbcNote = ""
+
+        weechat.prnt(buffer, "set key for %s to %s%s" % (target, argv2eol, cbcNote))
 
         return weechat.WEECHAT_RC_OK
 
@@ -985,6 +1015,8 @@ def fish_list_keys(buffer):
 
     for (target, key) in sorted(fish_keys.items()):
         (server, nick) = target.split("/")
+        if fish_cbc.get(target, False):
+            key = 'cbc:' + key
         weechat.prnt(buffer, "\t%s(%s): %s" % (nick, server, key))
 
 
