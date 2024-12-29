@@ -590,8 +590,8 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
 
         fish_alert(buffer, "Key exchange initiated by %s. Key set." % target)
 
-        weechat.command(buffer, "/mute -all notice %s %s" % (
-                match.group(2), reply))
+        weechat.command(buffer, "/mute -all notice -server %s %s %s" % (
+                server_name, match.group(2), reply))
 
         fish_keys[targetl] = dh1080_secret(fish_DH1080ctx[targetl])
         if targetl in fish_cyphers:
