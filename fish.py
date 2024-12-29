@@ -433,11 +433,12 @@ def dh_validate_public(public, q, p):
 
 class DH1080Ctx:
     """DH1080 context."""
-    def __init__(self):
+    def __init__(self, cbc=True):
         self.public = 0
         self.private = 0
         self.secret = 0
         self.state = 0
+        self.cbc = cbc
 
         bits = 1080
         while True:
@@ -450,13 +451,12 @@ class DH1080Ctx:
 
 def dh1080_pack(ctx):
     """."""
-    cmd = None
     if ctx.state == 0:
         ctx.state = 1
         cmd = "DH1080_INIT "
     else:
         cmd = "DH1080_FINISH "
-    return cmd + dh1080_b64encode(int2bytes(ctx.public))
+    return cmd + dh1080_b64encode(int2bytes(ctx.public)) + (" CBC" if ctx.cbc else "")
 
 
 def dh1080_unpack(msg, ctx):
@@ -465,17 +465,19 @@ def dh1080_unpack(msg, ctx):
         raise ValueError
 
     if ctx.state == 0:
-        if not msg.startswith("DH1080_INIT "):
+        if not msg.startswith("DH1080_INIT ") and not msg.startswith("DH1080_INIT_CBC "):
             raise ValueError
         ctx.state = 1
         try:
-            cmd, public_raw = msg.split(' ', 1)
+            cmd, public_raw, *rest = msg.split(' ')
             public = bytes2int(dh1080_b64decode(public_raw))
 
             if not 1 < public < p_dh1080:
                 raise ValueError
 
             ctx.secret = pow(public, ctx.private, p_dh1080)
+            ctx.cbc = "CBC" in rest or cmd == "DH1080_INIT_CBC"
+
         except Exception:
             raise ValueError
 
@@ -484,13 +486,15 @@ def dh1080_unpack(msg, ctx):
             raise ValueError
         ctx.state = 1
         try:
-            cmd, public_raw = msg.split(' ', 1)
+            cmd, public_raw, *rest = msg.split(' ')
             public = bytes2int(dh1080_b64decode(public_raw))
 
             if not 1 < public < p_dh1080:
                 raise ValueError
 
             ctx.secret = pow(public, ctx.private, p_dh1080)
+            ctx.cbc = "CBC" in rest
+
         except Exception:
             raise ValueError
 
@@ -544,14 +548,14 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
 
     match = re.match(
         r"^((?:@[^ ]* )?:(.*?)!.*? NOTICE (.*?) :)"
-        r"((DH1080_INIT |DH1080_FINISH |\+OK |mcps )?.*)$",
+        r"((DH1080_INIT |DH1080_INIT_CBC |DH1080_FINISH |\+OK |mcps )?.*)$",
         string)
     # match.group(0): message
     # match.group(1): msg without payload
     # match.group(2): source
     # match.group(3): target
     # match.group(4): msg
-    # match.group(5): "DH1080_INIT "|"DH1080_FINISH "|"+OK "|"mcps "
+    # match.group(5): "DH1080_INIT "|"DH1080_INIT_CBC "|"DH1080_FINISH "|"+OK "|"mcps "
     if not match or not match.group(5):
         return string
 
@@ -571,18 +575,17 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
         fish_alert(buffer, "Key exchange for %s successful" % target)
 
         fish_keys[targetl] = dh1080_secret(fish_DH1080ctx[targetl])
+        fish_cbc[targetl] = fish_DH1080ctx[targetl].cbc
         if targetl in fish_cyphers:
             del fish_cyphers[targetl]
         del fish_DH1080ctx[targetl]
 
         return ""
 
-    if match.group(5) == "DH1080_INIT ":
+    if match.group(5) == "DH1080_INIT " or match.group(5) == "DH_1080_INIT_CBC ":
         fish_DH1080ctx[targetl] = DH1080Ctx()
 
-        msg = ' '.join(match.group(4).split()[0:2])
-
-        if not dh1080_unpack(msg, fish_DH1080ctx[targetl]):
+        if not dh1080_unpack(match.group(4), fish_DH1080ctx[targetl]):
             fish_announce_unencrypted(buffer, target)
             return string
 
@@ -590,10 +593,11 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
 
         fish_alert(buffer, "Key exchange initiated by %s. Key set." % target)
 
-        weechat.command(buffer, "/mute -all notice -server %s %s %s" % (
+        weechat.command(buffer, "/mute notice -server %s %s %s" % (
                 server_name, match.group(2), reply))
 
         fish_keys[targetl] = dh1080_secret(fish_DH1080ctx[targetl])
+        fish_cbc[targetl] = fish_DH1080ctx[targetl].cbc
         if targetl in fish_cyphers:
             del fish_cyphers[targetl]
         del fish_DH1080ctx[targetl]
@@ -950,7 +954,7 @@ def fish_cmd_blowkey(data, buffer, args):
         weechat.prnt(buffer, "Initiating DH1080 Exchange with %s" % target)
         fish_DH1080ctx[targetl] = DH1080Ctx()
         msg = dh1080_pack(fish_DH1080ctx[targetl])
-        weechat.command(buffer, "/mute -all notice -server %s %s %s" % (
+        weechat.command(buffer, "/mute notice -server %s %s %s" % (
             server_name, target_user, msg))
 
         return weechat.WEECHAT_RC_OK
@@ -975,7 +979,7 @@ def fish_announce_encrypted(buffer, target):
             weechat.buffer_get_string(buffer, "localvar_type") != "private"):
         # if we get a private message and there no buffer yet, create one and
         # jump back to the previous buffer
-        weechat.command(buffer, "/mute -all query %s" % nick)
+        weechat.command(buffer, "/mute query %s" % nick)
         buffer = weechat.info_get("irc_buffer", "%s,%s" % (server, nick))
         weechat.command(buffer, "/input jump_previously_visited_buffer")
 
