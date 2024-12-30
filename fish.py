@@ -107,7 +107,7 @@ def fish_config_reload_cb(data, config_file):
 
 def fish_config_keys_read_cb(data, config_file, section_name, option_name,
                              value):
-    global fish_keys
+    global fish_keys, fish_cbc
 
     option = weechat.config_new_option(
             config_file, section_name, option_name, "string", "key", "", 0, 0,
@@ -125,7 +125,7 @@ def fish_config_keys_read_cb(data, config_file, section_name, option_name,
 
 
 def fish_config_keys_write_cb(data, config_file, section_name):
-    global fish_keys
+    global fish_keys, fish_cbc
 
     weechat.config_write_line(config_file, section_name, "")
     for target, key in sorted(fish_keys.items()):
@@ -541,7 +541,7 @@ def sha256(s):
 #
 
 def fish_modifier_in_notice_cb(data, modifier, server_name, string):
-    global fish_DH1080ctx, fish_keys, fish_cyphers
+    global fish_DH1080ctx, fish_keys, fish_cyphers, fish_cbc
 
     if type(string) is bytes:
         return string
@@ -782,7 +782,7 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
 
 
 def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
-    global fish_keys, fish_cyphers
+    global fish_keys, fish_cyphers, fish_cbc
 
     if type(string) is bytes:
         return string
@@ -818,7 +818,7 @@ def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
 
 
 def fish_modifier_out_topic_cb(data, modifier, server_name, string):
-    global fish_keys, fish_cyphers
+    global fish_keys, fish_cyphers, fish_cbc
 
     if type(string) is bytes:
         return string
@@ -866,7 +866,7 @@ def fish_unload_cb():
 #
 
 def fish_cmd_blowkey(data, buffer, args):
-    global fish_keys, fish_cyphers, fish_DH1080ctx
+    global fish_keys, fish_cyphers, fish_DH1080ctx, fish_cbc
 
     if args == "" or args == "list":
         fish_list_keys(buffer)
@@ -1013,7 +1013,7 @@ def fish_alert(buffer, message):
 
 
 def fish_list_keys(buffer):
-    global fish_keys
+    global fish_keys, fish_cbc
 
     weechat.prnt(buffer, "\tFiSH Keys: form target(server): key")
 
