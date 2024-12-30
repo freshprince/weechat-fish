@@ -609,7 +609,7 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
             fish_announce_unencrypted(buffer, target)
             return string
 
-        key = fish_keys[targetl]
+        key = weechat.string_eval_expression(fish_keys[targetl], {}, {},{})
 
         try:
             if targetl not in fish_cyphers:
@@ -671,7 +671,7 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
 
         return string
 
-    key = fish_keys[targetl]
+    key = weechat.string_eval_expression(fish_keys[targetl], {}, {}, {})
 
     try:
         if targetl not in fish_cyphers:
@@ -721,7 +721,7 @@ def fish_modifier_in_topic_cb(data, modifier, server_name, string):
 
         return string
 
-    key = fish_keys[targetl]
+    key = weechat.string_eval_expression(fish_keys[targetl], {}, {}, {})
 
     try:
         if targetl not in fish_cyphers:
@@ -761,7 +761,7 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
 
         return string
 
-    key = fish_keys[targetl]
+    key = weechat.string_eval_expression(fish_keys[targetl], {}, {}, {})
 
     try:
         if targetl not in fish_cyphers:
@@ -802,12 +802,12 @@ def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
         return string
 
     if targetl not in fish_cyphers:
-        b = Blowfish(fish_keys[targetl])
+        b = Blowfish(weechat.string_eval_expression(fish_keys[targetl], {}, {}, {}))
         fish_cyphers[targetl] = b
     else:
         b = fish_cyphers[targetl]
     if fish_cbc.get(targetl, False):
-        cbcKey = fish_keys[targetl]
+        cbcKey = weechat.string_eval_expression(fish_keys[targetl], {}, {}, {})
     else:
         cbcKey = None
     cypher = blowcrypt_pack(match.group(3).encode(), b, cbcKey)
@@ -840,12 +840,12 @@ def fish_modifier_out_topic_cb(data, modifier, server_name, string):
         return string
 
     if targetl not in fish_cyphers:
-        b = Blowfish(fish_keys[targetl])
+        b = Blowfish(weechat.string_eval_expression(fish_keys[targetl], {}, {}, {}))
         fish_cyphers[targetl] = b
     else:
         b = fish_cyphers[targetl]
     if fish_cbc.get(targetl, False):
-        cbcKey = fish_keys[targetl]
+        cbcKey = weechat.string_eval_expression(fish_keys[targetl], {}, {}, {})
     else:
         cbcKey = None
     cypher = blowcrypt_pack(match.group(3).encode(), b, cbcKey)
