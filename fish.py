@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2011-2022 David Flatz <david@upcs.at>
+# Copyright (C) David Flatz <david@upcs.at>
 # Copyright (C) 2017 Ricardo Ferreira <ricardo.sff@goatse.cx>
 # Copyright (C) 2012 Markus Näsman <markus@botten.org>
 # Copyright (C) 2009 Bjorn Edstrom <be@bjrn.se>
@@ -17,17 +17,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-
-#
-# NOTE: Blowfish and DH1080 implementation is licenced under a different
-# license:
-#
-# Copyright (c) 2009, Bjorn Edstrom <be@bjrn.se>
-#
-# Permission to use, copy, modify, and distribute this software for any
-# purpose with or without fee is hereby granted, provided that the above
-# copyright notice and this permission notice appear in all copies.
 #
 
 #
