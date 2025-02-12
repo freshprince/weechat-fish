@@ -149,6 +149,10 @@ def fish_config_init():
             fish_config_file, section_look, "marker",
             "string", "marker for important FiSH messages", "", 0, 0,
             "O<", "O<", 0, "", "", "", "", "", "")
+    fish_config_option["item"] = weechat.config_new_option(
+            fish_config_file, section_look, "item",
+            "string", "string used to show FiSH being used in current buffer",
+            "", 0, 0, "%", "%", 0, "", "", "", "", "", "")
 
     # color
     section_color = weechat.config_new_section(
@@ -232,11 +236,10 @@ def fish_bar_cb(data, item, window, buffer, extra_info):
         return ''
 
     state = fish_buffer_state.get(targetl, 'plaintext')
-
-    marker = weechat.config_string(fish_config_option['marker'])
+    item = weechat.config_string(fish_config_option['item'])
     color = weechat.color(weechat.config_color(fish_config_option[state]))
 
-    return f"{color}{marker}"
+    return f"{color}{item}"
 
 
 ##
