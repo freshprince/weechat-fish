@@ -91,7 +91,7 @@ fish_config_file = None
 fish_config_option = {}
 fish_config_keys = None
 fish_DH1080ctx = {}
-fish_encryption_announced = {}
+fish_buffer_state = {} # ecb, cbc, None
 
 
 #
@@ -291,6 +291,7 @@ def blowcrypt_unpack(msg, key):
     _, rest = msg.split(' ', 1)
 
     if rest.startswith('*'):  # CBC mode
+        cbc = True
         rest = rest[1:]
         if len(rest) % 4:
             rest += '=' * (4 - len(rest) % 4)
@@ -305,6 +306,7 @@ def blowcrypt_unpack(msg, key):
         plain = cipher.decrypt(padto(raw, 8))
 
     else:
+        cbc = False
         cipher = Blowfish(key)
 
         if len(rest) < 12:
@@ -322,7 +324,7 @@ def blowcrypt_unpack(msg, key):
 
         plain = cipher.decrypt(raw)
 
-    return plain.strip(b'\x00').replace(b'\n', b'')
+    return (plain.strip(b'\x00').replace(b'\n', b''), cbc)
 
 
 #
@@ -620,9 +622,9 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
         (key, cbc) = key
 
         try:
-            clean = blowcrypt_unpack(match.group(4), key)
+            (clean, cbc) = blowcrypt_unpack(match.group(4), key)
 
-            fish_announce_encrypted(buffer, target)
+            fish_announce_encrypted(buffer, target, cbc)
 
             return b"%s%s" % (match.group(1).encode(), clean)
         except Exception as e:
@@ -675,9 +677,9 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
     (key, cbc) = key
 
     try:
-        clean = blowcrypt_unpack(match.group(5), key)
+        (clean, cbc) = blowcrypt_unpack(match.group(5), key)
 
-        fish_announce_encrypted(buffer, target)
+        fish_announce_encrypted(buffer, target, cbc)
 
         if not match.group(4):
             return b'%s%s' % (match.group(1).encode(), clean)
@@ -719,9 +721,9 @@ def fish_modifier_in_topic_cb(data, modifier, server_name, string):
     (key, cbc) = key
 
     try:
-        clean = blowcrypt_unpack(match.group(3), key)
+        (clean, cbc) = blowcrypt_unpack(match.group(3), key)
 
-        fish_announce_encrypted(buffer, target)
+        fish_announce_encrypted(buffer, target, cbc)
 
         return b"%s%s" % (match.group(1).encode(), clean)
     except Exception as e:
@@ -753,9 +755,9 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
     (key, cbc) = key
 
     try:
-        clean = blowcrypt_unpack(match.group(3), key)
+        (clean, cbc) = blowcrypt_unpack(match.group(3), key)
 
-        fish_announce_encrypted(buffer, target)
+        fish_announce_encrypted(buffer, target, cbc)
 
         return b"%s%s" % (match.group(1).encode(), clean)
     except Exception as e:
@@ -788,7 +790,7 @@ def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
 
     cypher = blowcrypt_pack(match.group(3).encode(), key, cbc)
 
-    fish_announce_encrypted(buffer, target)
+    fish_announce_encrypted(buffer, target, cbc)
 
     return "%s%s" % (match.group(1), cypher)
 
@@ -819,7 +821,7 @@ def fish_modifier_out_topic_cb(data, modifier, server_name, string):
 
     cypher = blowcrypt_pack(match.group(3).encode(), key, cbc)
 
-    fish_announce_encrypted(buffer, target)
+    fish_announce_encrypted(buffer, target, cbc)
 
     return "%s%s" % (match.group(1), cypher)
 
@@ -926,11 +928,12 @@ def fish_cmd_blowkey(data, buffer, args):
 # HELPERS
 #
 
-def fish_announce_encrypted(buffer, target):
-    global fish_encryption_announced, fish_config_option
+def fish_announce_encrypted(buffer, target, cbc):
+    global fish_buffer_state, fish_config_option
+    new_state = 'cbc' if cbc else 'ecb'
 
     if (not weechat.config_boolean(fish_config_option['announce']) or
-            fish_encryption_announced.get(target)):
+            fish_buffer_state.get(target) == new_state):
         return
 
     (server, nick) = target.split("/")
@@ -943,16 +946,16 @@ def fish_announce_encrypted(buffer, target):
         buffer = weechat.info_get("irc_buffer", "%s,%s" % (server, nick))
         weechat.command(buffer, "/input jump_previously_visited_buffer")
 
-    fish_alert(buffer, "Messages to/from %s are encrypted." % target)
+    fish_alert(buffer, f"Messages to/from {target} are encrypted ({new_state}).")
 
-    fish_encryption_announced[target] = True
+    fish_buffer_state[target] = new_state
 
 
 def fish_announce_unencrypted(buffer, target):
-    global fish_encryption_announced, fish_config_option
+    global fish_buffer_state, fish_config_option
 
     if (not weechat.config_boolean(fish_config_option['announce']) or
-            not fish_encryption_announced.get(target)):
+            not fish_buffer_state.get(target)):
         return
 
     fish_alert(buffer, "Messages to/from %s are %s*not*%s encrypted." % (
@@ -960,7 +963,7 @@ def fish_announce_unencrypted(buffer, target):
             weechat.color(weechat.config_color(fish_config_option["alert"])),
             weechat.color("chat")))
 
-    del fish_encryption_announced[target]
+    del fish_buffer_state[target]
 
 
 def fish_alert(buffer, message):
