@@ -165,7 +165,7 @@ def fish_config_init():
     fish_config_option["plaintext"] = weechat.config_new_option(
             fish_config_file, section_color, "plaintext",
             "color", "color for bar item when messages are in plain text", "",
-            0, 0, "red", "red", 0, "", "", "", "", "", "")
+            0, 0, "*red", "*red", 0, "", "", "", "", "", "")
     fish_config_option["ecb"] = weechat.config_new_option(
             fish_config_file, section_color, "ecb",
             "color", "color for bar item when messages are encrypted in ECB mode", "",
@@ -173,7 +173,7 @@ def fish_config_init():
     fish_config_option["cbc"] = weechat.config_new_option(
             fish_config_file, section_color, "cbc",
             "color", "color for bar item when messages are encrypted in CBC mode", "",
-            0, 0, "lightgreen", "lightgreen", 0, "", "", "", "", "", "")
+            0, 0, "green", "green", 0, "", "", "", "", "", "")
 
     # keys
     fish_config_keys = weechat.config_new_section(
