@@ -274,17 +274,17 @@ def padto(msg, length):
     return msg
 
 
-def blowcrypt_pack(msg, cipher, cbcKey=None):
+def blowcrypt_pack(msg, key, cbc):
     """."""
-    if cbcKey is not None: # CBC mode
-        cbcCipher = CryptoBlowfish.new(
-                cbcKey.encode('utf-8'), CryptoBlowfish.MODE_CBC)
-        return '+OK *'+ base64.b64encode(cbcCipher.iv + cbcCipher.encrypt(padto(msg, 8))).decode('utf-8')
+    if cbc:
+        cipher = CryptoBlowfish.new(key.encode('utf-8'), CryptoBlowfish.MODE_CBC)
+        return '+OK *'+ base64.b64encode(cipher.iv + cipher.encrypt(padto(msg, 8))).decode('utf-8')
     else:
+        cipher = Blowfish(key)
         return '+OK ' + blowcrypt_b64encode(cipher.encrypt(padto(msg, 8)))
 
 
-def blowcrypt_unpack(msg, cipher, key):
+def blowcrypt_unpack(msg, key):
     """."""
     if not (msg.startswith('+OK ') or msg.startswith('mcps ')):
         raise ValueError
@@ -299,12 +299,13 @@ def blowcrypt_unpack(msg, cipher, key):
         iv = raw[:8]
         raw = raw[8:]
 
-        cbcCipher = CryptoBlowfish.new(
+        cipher = CryptoBlowfish.new(
                 key.encode('utf-8'), CryptoBlowfish.MODE_CBC, iv)
 
-        plain = cbcCipher.decrypt(padto(raw, 8))
+        plain = cipher.decrypt(padto(raw, 8))
 
     else:
+        cipher = Blowfish(key)
 
         if len(rest) < 12:
             raise ValueError
@@ -619,9 +620,7 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
         (key, cbc) = key
 
         try:
-            b = Blowfish(key)
-
-            clean = blowcrypt_unpack(match.group(4), b, key)
+            clean = blowcrypt_unpack(match.group(4), key)
 
             fish_announce_encrypted(buffer, target)
 
@@ -676,8 +675,7 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
     (key, cbc) = key
 
     try:
-        b = Blowfish(key)
-        clean = blowcrypt_unpack(match.group(5), b, key)
+        clean = blowcrypt_unpack(match.group(5), key)
 
         fish_announce_encrypted(buffer, target)
 
@@ -721,9 +719,7 @@ def fish_modifier_in_topic_cb(data, modifier, server_name, string):
     (key, cbc) = key
 
     try:
-        b = Blowfish(key)
-
-        clean = blowcrypt_unpack(match.group(3), b, key)
+        clean = blowcrypt_unpack(match.group(3), key)
 
         fish_announce_encrypted(buffer, target)
 
@@ -757,9 +753,7 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
     (key, cbc) = key
 
     try:
-        b = Blowfish(key)
-
-        clean = blowcrypt_unpack(match.group(3), b, key)
+        clean = blowcrypt_unpack(match.group(3), key)
 
         fish_announce_encrypted(buffer, target)
 
@@ -792,9 +786,7 @@ def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
 
     (key, cbc) = key
 
-    b = Blowfish(key)
-    cbcKey = key if cbc else None
-    cypher = blowcrypt_pack(match.group(3).encode(), b, cbcKey)
+    cypher = blowcrypt_pack(match.group(3).encode(), key, cbc)
 
     fish_announce_encrypted(buffer, target)
 
@@ -825,9 +817,7 @@ def fish_modifier_out_topic_cb(data, modifier, server_name, string):
 
     (key, cbc) = key
 
-    b = Blowfish(key)
-    cbcKey = key if cbc else None
-    cypher = blowcrypt_pack(match.group(3).encode(), b, cbcKey)
+    cypher = blowcrypt_pack(match.group(3).encode(), key, cbc)
 
     fish_announce_encrypted(buffer, target)
 
@@ -1032,4 +1022,4 @@ if (__name__ == "__main__" and import_ok and
 elif (__name__ == "__main__" and len(sys.argv) == 3):
     key = sys.argv[1]
     msg = sys.argv[2]
-    print(blowcrypt_unpack(msg, Blowfish(key), key))
+    print(blowcrypt_unpack(msg, key))
