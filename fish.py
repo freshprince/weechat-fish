@@ -63,6 +63,7 @@ SCRIPT_VERSION = "0.14"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "FiSH for weechat"
 CONFIG_FILE_NAME = SCRIPT_NAME
+BAR_ITEM_NAME = SCRIPT_NAME
 
 import_ok = True
 
@@ -92,6 +93,7 @@ fish_config_option = {}
 fish_config_keys = None
 fish_DH1080ctx = {}
 fish_buffer_state = {} # ecb, cbc, None
+fish_bar_item = None
 
 
 #
@@ -118,8 +120,8 @@ def fish_config_keys_create_cb(data, config_file, section, option_name, value):
 
 
 def fish_config_keys_delete_cb(data, config_file, section, option):
-    # here we could remove some state for buffer
     weechat.config_option_free(option)
+    weechat.bar_item_update(BAR_ITEM_NAME)
     return weechat.WEECHAT_CONFIG_OPTION_UNSET_OK_REMOVED
 
 
@@ -160,6 +162,18 @@ def fish_config_init():
             fish_config_file, section_color, "alert",
             "color", "color for important FiSH message markers", "", 0, 0,
             "lightblue", "lightblue", 0, "", "", "", "", "", "")
+    fish_config_option["plaintext"] = weechat.config_new_option(
+            fish_config_file, section_color, "plaintext",
+            "color", "color for bar item when messages are in plain text", "",
+            0, 0, "red", "red", 0, "", "", "", "", "", "")
+    fish_config_option["ecb"] = weechat.config_new_option(
+            fish_config_file, section_color, "ecb",
+            "color", "color for bar item when messages are encrypted in ECB mode", "",
+            0, 0, "lightblue", "lightblue", 0, "", "", "", "", "", "")
+    fish_config_option["cbc"] = weechat.config_new_option(
+            fish_config_file, section_color, "cbc",
+            "color", "color for bar item when messages are encrypted in CBC mode", "",
+            0, 0, "lightgreen", "lightgreen", 0, "", "", "", "", "", "")
 
     # keys
     fish_config_keys = weechat.config_new_section(
@@ -204,6 +218,25 @@ def fish_key_get(target: str):
         key = key[4:]
 
     return (key, cbc)
+
+
+def fish_bar_cb(data, item, window, buffer, extra_info):
+    global fish_buffer_state
+
+    server_name = weechat.buffer_get_string(buffer, "localvar_server")
+    target_user = weechat.buffer_get_string(buffer, "localvar_channel")
+    target = f"{server_name}/{target_user}"
+    targetl = target.lower()
+
+    if fish_key_get(targetl) is None:
+        return ''
+
+    state = fish_buffer_state.get(targetl, 'plaintext')
+
+    marker = weechat.config_string(fish_config_option['marker'])
+    color = weechat.color(weechat.config_color(fish_config_option[state]))
+
+    return f"{color}{marker}"
 
 
 ##
@@ -828,6 +861,7 @@ def fish_modifier_out_topic_cb(data, modifier, server_name, string):
 
 def fish_unload_cb():
     fish_config_write()
+    weechat.bar_item_remove(fish_bar_item)
 
     return weechat.WEECHAT_RC_OK
 
@@ -949,6 +983,7 @@ def fish_announce_encrypted(buffer, target, cbc):
     fish_alert(buffer, f"Messages to/from {target} are encrypted ({new_state}).")
 
     fish_buffer_state[target] = new_state
+    weechat.bar_item_update(BAR_ITEM_NAME)
 
 
 def fish_announce_unencrypted(buffer, target):
@@ -964,6 +999,7 @@ def fish_announce_unencrypted(buffer, target):
             weechat.color("chat")))
 
     del fish_buffer_state[target]
+    weechat.bar_item_update(BAR_ITEM_NAME)
 
 
 def fish_alert(buffer, message):
@@ -1014,6 +1050,8 @@ if (__name__ == "__main__" and import_ok and
 
     fish_config_init()
     fish_config_read()
+
+    fish_bar_item = weechat.bar_item_new('(extra)' + BAR_ITEM_NAME, 'fish_bar_cb', '')
 
     weechat.hook_modifier("irc_in_notice", "fish_modifier_in_notice_cb", "")
     weechat.hook_modifier("irc_in_privmsg", "fish_modifier_in_privmsg_cb", "")
