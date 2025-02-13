@@ -235,7 +235,7 @@ def fish_bar_cb(data, item, window, buffer, extra_info):
     if fish_key_get(targetl) is None:
         return ''
 
-    state = fish_buffer_state.get(targetl, 'plaintext')
+    state = fish_buffer_state.get(target, 'plaintext')
     item = weechat.config_string(fish_config_option['item'])
     color = weechat.color(weechat.config_color(fish_config_option[state]))
 
