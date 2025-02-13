@@ -623,60 +623,49 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
     buffer = weechat.info_get("irc_buffer", "%s,%s" % (
             server_name, match.group(2)))
 
-    if match.group(5) == "DH1080_FINISH " and targetl in fish_DH1080ctx:
-        if not dh1080_unpack(match.group(4), fish_DH1080ctx[targetl]):
-            fish_announce_unencrypted(buffer, target)
-            return string
-
+    if (match.group(5) == "DH1080_FINISH " and targetl in fish_DH1080ctx and
+            dh1080_unpack(match.group(4), fish_DH1080ctx[targetl])):
         fish_alert(buffer, "Key exchange for %s successful" % target)
-
-        fish_key_set(targetl, dh1080_secret(fish_DH1080ctx[targetl]), fish_DH1080ctx[targetl].cbc)
-
+        fish_key_set(targetl, dh1080_secret(fish_DH1080ctx[targetl]),
+                fish_DH1080ctx[targetl].cbc)
         del fish_DH1080ctx[targetl]
 
         return ""
 
-    if match.group(5) == "DH1080_INIT " or match.group(5) == "DH_1080_INIT_CBC ":
-        fish_DH1080ctx[targetl] = DH1080Ctx()
-
-        if not dh1080_unpack(match.group(4), fish_DH1080ctx[targetl]):
-            fish_announce_unencrypted(buffer, target)
-            return string
-
+    if (match.group(5) in ["DH1080_INIT ", "DH_1080_INIT_CBC "] and
+            fish_DH1080ctx.__setitem__(targetl, DH1080Ctx()) is None and
+            dh1080_unpack(match.group(4), fish_DH1080ctx[targetl])):
         reply = dh1080_pack(fish_DH1080ctx[targetl])
-
         fish_alert(buffer, "Key exchange initiated by %s. Key set." % target)
-
         weechat.command(buffer, "/mute notice -server %s %s %s" % (
                 server_name, match.group(2), reply))
-
-        fish_key_set(targetl, dh1080_secret(fish_DH1080ctx[targetl]), fish_DH1080ctx[targetl].cbc)
+        fish_key_set(targetl, dh1080_secret(fish_DH1080ctx[targetl]),
+                fish_DH1080ctx[targetl].cbc)
         del fish_DH1080ctx[targetl]
 
         return ""
 
-    if match.group(5) in ["+OK ", "mcps "]:
-        key = fish_key_get(targetl)
-        if key is None:
-            fish_announce_unencrypted(buffer, target)
-            return string
+    key = fish_key_get(targetl)
+    if key is None:
+        return string
 
-        (key, cbc) = key
+    if match.group(5) not in ["+OK ", "mcps "]:
+        fish_announce_unencrypted(buffer, target)
 
-        try:
-            (clean, cbc) = blowcrypt_unpack(match.group(4), key)
+        return string
 
-            fish_announce_encrypted(buffer, target, cbc)
+    (key, cbc) = key
 
-            return b"%s%s" % (match.group(1).encode(), clean)
-        except Exception as e:
-            fish_announce_unencrypted(buffer, target)
+    try:
+        (clean, cbc) = blowcrypt_unpack(match.group(4), key)
 
-            raise e
+        fish_announce_encrypted(buffer, target, cbc)
 
-    fish_announce_unencrypted(buffer, target)
+        return b"%s%s" % (match.group(1).encode(), clean)
+    except Exception as e:
+        fish_announce_unencrypted(buffer, target)
 
-    return string
+        raise e
 
 
 def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
@@ -705,15 +694,13 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
     targetl = ("%s/%s" % (server_name, dest)).lower()
     buffer = weechat.info_get("irc_buffer", "%s,%s" % (server_name, dest))
 
-    if not match.group(6):
-        fish_announce_unencrypted(buffer, target)
+    key = fish_key_get(targetl)
 
+    if key is None:
         return string
 
-    key = fish_key_get(targetl)
-    if key is None:
+    if not match.group(6):
         fish_announce_unencrypted(buffer, target)
-
         return string
 
     (key, cbc) = key
@@ -755,9 +742,11 @@ def fish_modifier_in_topic_cb(data, modifier, server_name, string):
 
     key = fish_key_get(targetl)
 
-    if key is None or not match.group(4):
-        fish_announce_unencrypted(buffer, target)
+    if key is None:
+        return string
 
+    if not match.group(4):
+        fish_announce_unencrypted(buffer, target)
         return string
 
     (key, cbc) = key
@@ -789,9 +778,11 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
 
     key = fish_key_get(targetl)
 
-    if key is None or not match.group(4):
-        fish_announce_unencrypted(buffer, target)
+    if key is None:
+        return string
 
+    if not match.group(4):
+        fish_announce_unencrypted(buffer, target)
         return string
 
     (key, cbc) = key
@@ -824,8 +815,6 @@ def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
     key = fish_key_get(targetl)
 
     if key is None:
-        fish_announce_unencrypted(buffer, target)
-
         return string
 
     (key, cbc) = key
@@ -855,8 +844,6 @@ def fish_modifier_out_topic_cb(data, modifier, server_name, string):
     key = fish_key_get(targetl)
 
     if key is None:
-        fish_announce_unencrypted(buffer, target)
-
         return string
 
     (key, cbc) = key
