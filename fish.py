@@ -979,7 +979,7 @@ def fish_announce_encrypted(buffer, target, cbc):
             weechat.buffer_get_string(buffer, "localvar_type") != "private"):
         # if we get a private message and there no buffer yet, create one and
         # jump back to the previous buffer
-        weechat.command(buffer, "/mute query %s" % nick)
+        weechat.command(buffer, "/mute query -server %s %s" % (server, nick))
         buffer = weechat.info_get("irc_buffer", "%s,%s" % (server, nick))
         weechat.command(buffer, "/input jump_previously_visited_buffer")
 
