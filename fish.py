@@ -92,7 +92,7 @@ fish_config_file = None
 fish_config_option = {}
 fish_config_keys = None
 fish_DH1080ctx = {}
-fish_buffer_state = {} # ecb, cbc, None
+fish_buffer_state = {} # ecb, cbc, plaintext, None
 fish_bar_item = None
 
 
@@ -166,6 +166,10 @@ def fish_config_init():
             fish_config_file, section_color, "alert",
             "color", "color for important FiSH message markers", "", 0, 0,
             "lightblue", "lightblue", 0, "", "", "", "", "", "")
+    fish_config_option["unknown"] = weechat.config_new_option(
+            fish_config_file, section_color, "unknown",
+            "color", "color for bar item when state of encryption is unknown", "",
+            0, 0, "darkgray", "darkgray", 0, "", "", "", "", "", "")
     fish_config_option["plaintext"] = weechat.config_new_option(
             fish_config_file, section_color, "plaintext",
             "color", "color for bar item when messages are in plain text", "",
@@ -235,7 +239,7 @@ def fish_bar_cb(data, item, window, buffer, extra_info):
     if fish_key_get(targetl) is None:
         return ''
 
-    state = fish_buffer_state.get(target, 'plaintext')
+    state = fish_buffer_state.get(target, 'unknown')
     item = weechat.config_string(fish_config_option['item'])
     color = weechat.color(weechat.config_color(fish_config_option[state]))
 
@@ -1001,7 +1005,7 @@ def fish_announce_unencrypted(buffer, target):
             weechat.color(weechat.config_color(fish_config_option["alert"])),
             weechat.color("chat")))
 
-    del fish_buffer_state[target]
+    fish_buffer_state[target] = "plaintext"
     weechat.bar_item_update(BAR_ITEM_NAME)
 
 
