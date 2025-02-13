@@ -106,15 +106,14 @@ def fish_config_reload_cb(data, config_file):
 def fish_config_keys_create_cb(data, config_file, section, option_name, value):
     option = weechat.config_search_option(config_file, section, option_name)
     if option:
-        # here we should remove state localvar in resp. buffer
         return weechat.config_option_set(option, value, 1)
     else:
-        # here we could check wether buffer exists?
         option = weechat.config_new_option(config_file, section, option_name,
                 "string", "", "", 0, 0, "", value, 0, "", "", "", "", "", "")
 
         if not option:
             return weechat.WEECHAT_CONFIG_OPTION_SET_ERROR
+        weechat.bar_item_update(BAR_ITEM_NAME)
         return weechat.WEECHAT_CONFIG_OPTION_SET_OK_SAME_VALUE
 
 
