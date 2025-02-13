@@ -118,8 +118,12 @@ def fish_config_keys_create_cb(data, config_file, section, option_name, value):
 
 
 def fish_config_keys_delete_cb(data, config_file, section, option):
+    option_name = weechat.config_option_get_string(option, 'name')
     weechat.config_option_free(option)
-    weechat.bar_item_update(BAR_ITEM_NAME)
+    server, name = option_name.split('/')
+    buffer = weechat.info_get("irc_buffer", f"{server},{name}")
+    if buffer:
+        fish_state_set(buffer, None)
     return weechat.WEECHAT_CONFIG_OPTION_UNSET_OK_REMOVED
 
 
@@ -1019,7 +1023,10 @@ def fish_list_keys(buffer):
 
 
 def fish_state_set(buffer, state):
-    weechat.buffer_set(buffer, f'localvar_set_{SCRIPT_NAME}_state', state)
+    if state is None:
+        weechat.buffer_set(buffer, f'localvar_del_{SCRIPT_NAME}_state', '')
+    else:
+        weechat.buffer_set(buffer, f'localvar_set_{SCRIPT_NAME}_state', state)
     weechat.bar_item_update(BAR_ITEM_NAME)
 
 
