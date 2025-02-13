@@ -92,7 +92,6 @@ fish_config_file = None
 fish_config_option = {}
 fish_config_keys = None
 fish_DH1080ctx = {}
-fish_buffer_state = {} # ecb, cbc, plaintext, None
 fish_bar_item = None
 
 
@@ -107,7 +106,7 @@ def fish_config_reload_cb(data, config_file):
 def fish_config_keys_create_cb(data, config_file, section, option_name, value):
     option = weechat.config_search_option(config_file, section, option_name)
     if option:
-        # here we could reset some state for buffer
+        # here we should remove state localvar in resp. buffer
         return weechat.config_option_set(option, value, 1)
     else:
         # here we could check wether buffer exists?
@@ -1021,26 +1020,16 @@ def fish_list_keys(buffer):
 
 
 def fish_state_set(buffer, state):
-    global fish_buffer_state
-
-    server_name = weechat.buffer_get_string(buffer, "localvar_server")
-    target_user = weechat.buffer_get_string(buffer, "localvar_channel")
-    target = f"{server_name}/{target_user}"
-
-    fish_buffer_state[target] = state
+    weechat.buffer_set(buffer, f'localvar_set_{SCRIPT_NAME}_state', state)
     weechat.bar_item_update(BAR_ITEM_NAME)
 
 
 def fish_state_get(buffer, default=None):
-    global fish_buffer_state
+    state = weechat.buffer_get_string(buffer, f'localvar_{SCRIPT_NAME}_state')
+    if not state:
+        state = default
 
-    server_name = weechat.buffer_get_string(buffer, "localvar_server")
-    target_user = weechat.buffer_get_string(buffer, "localvar_channel")
-    target = f"{server_name}/{target_user}"
-
-    return fish_buffer_state.get(target, default)
-
-
+    return state
 
 
 #
