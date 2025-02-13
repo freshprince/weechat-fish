@@ -997,7 +997,7 @@ def fish_announce_encrypted(buffer, target, cbc):
 def fish_announce_unencrypted(buffer, target):
     global fish_config_option
 
-    if (fish_state_get(buffer, 'plaintext') == 'plaintext'):
+    if (fish_state_get(buffer) == 'plaintext'):
         return
 
     if (weechat.config_boolean(fish_config_option['announce'])):
