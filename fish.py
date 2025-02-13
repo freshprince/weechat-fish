@@ -229,7 +229,7 @@ def fish_key_get(target: str):
 
 
 def fish_bar_cb(data, item, window, buffer, extra_info):
-    global fish_buffer_state
+    global fish_config_option
 
     server_name = weechat.buffer_get_string(buffer, "localvar_server")
     target_user = weechat.buffer_get_string(buffer, "localvar_channel")
@@ -239,7 +239,7 @@ def fish_bar_cb(data, item, window, buffer, extra_info):
     if fish_key_get(targetl) is None:
         return ''
 
-    state = fish_buffer_state.get(target, 'unknown')
+    state = fish_state_get(buffer, 'unknown')
     item = weechat.config_string(fish_config_option['item'])
     color = weechat.color(weechat.config_color(fish_config_option[state]))
 
@@ -970,11 +970,10 @@ def fish_cmd_blowkey(data, buffer, args):
 #
 
 def fish_announce_encrypted(buffer, target, cbc):
-    global fish_buffer_state, fish_config_option
+    global fish_config_option
     new_state = 'cbc' if cbc else 'ecb'
 
-    if (not weechat.config_boolean(fish_config_option['announce']) or
-            fish_buffer_state.get(target) == new_state):
+    if (fish_state_get(buffer) == new_state):
         return
 
     (server, nick) = target.split("/")
@@ -987,26 +986,25 @@ def fish_announce_encrypted(buffer, target, cbc):
         buffer = weechat.info_get("irc_buffer", "%s,%s" % (server, nick))
         weechat.command(buffer, "/input jump_previously_visited_buffer")
 
-    fish_alert(buffer, f"Messages to/from {target} are encrypted ({new_state}).")
+    if (weechat.config_boolean(fish_config_option['announce'])):
+        fish_alert(buffer, f"Messages to/from {target} are encrypted ({new_state}).")
 
-    fish_buffer_state[target] = new_state
-    weechat.bar_item_update(BAR_ITEM_NAME)
+    fish_state_set(buffer, new_state)
 
 
 def fish_announce_unencrypted(buffer, target):
-    global fish_buffer_state, fish_config_option
+    global fish_config_option
 
-    if (not weechat.config_boolean(fish_config_option['announce']) or
-            not fish_buffer_state.get(target)):
+    if (fish_state_get(buffer, 'plaintext') == 'plaintext'):
         return
 
-    fish_alert(buffer, "Messages to/from %s are %s*not*%s encrypted." % (
-            target,
-            weechat.color(weechat.config_color(fish_config_option["alert"])),
-            weechat.color("chat")))
+    if (weechat.config_boolean(fish_config_option['announce'])):
+        fish_alert(buffer, "Messages to/from %s are %s*not*%s encrypted." % (
+                target,
+                weechat.color(weechat.config_color(fish_config_option["alert"])),
+                weechat.color("chat")))
 
-    fish_buffer_state[target] = "plaintext"
-    weechat.bar_item_update(BAR_ITEM_NAME)
+    fish_state_set(buffer, "plaintext")
 
 
 def fish_alert(buffer, message):
@@ -1020,6 +1018,29 @@ def fish_alert(buffer, message):
 
 def fish_list_keys(buffer):
     weechat.command("", f"/set {CONFIG_FILE_NAME}.keys.*")
+
+
+def fish_state_set(buffer, state):
+    global fish_buffer_state
+
+    server_name = weechat.buffer_get_string(buffer, "localvar_server")
+    target_user = weechat.buffer_get_string(buffer, "localvar_channel")
+    target = f"{server_name}/{target_user}"
+
+    fish_buffer_state[target] = state
+    weechat.bar_item_update(BAR_ITEM_NAME)
+
+
+def fish_state_get(buffer, default=None):
+    global fish_buffer_state
+
+    server_name = weechat.buffer_get_string(buffer, "localvar_server")
+    target_user = weechat.buffer_get_string(buffer, "localvar_channel")
+    target = f"{server_name}/{target_user}"
+
+    return fish_buffer_state.get(target, default)
+
+
 
 
 #
