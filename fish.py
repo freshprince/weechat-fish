@@ -20,19 +20,9 @@
 #
 
 #
-# NOTE: Blowfish and DH1080 implementation is licenced under a different
-# license:
-#
-# Copyright (c) 2009, Bjorn Edstrom <be@bjrn.se>
-#
-# Permission to use, copy, modify, and distribute this software for any
-# purpose with or without fee is hereby granted, provided that the above
-# copyright notice and this permission notice appear in all copies.
-#
-
-#
-# Suggestions, Bugs, ...?
+# Changelog, Suggestions, Bugs, ...?
 # https://github.com/freshprince/weechat-fish
+#
 
 #
 # NOTE ABOUT DH1080:
