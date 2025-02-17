@@ -25,6 +25,24 @@
 #
 
 #
+# HINTS:
+# =====
+#
+# Getting long lines cut off by the irc server? Try setting
+# irc.*.split_msg_max_length to something smaller:
+#     /set irc.server_default.split_msg_max_length 400
+#
+# You can have an indicator showing whether messages in a buffer are encrypted
+# by adding the fish item to a bar:
+#     /eval /set weechat.bar.status.items ${weechat.bar.status.items},fish
+#
+# If you want to keep the keys stored on disk to be encrypted you can use
+# weechat secure data:
+#     /secure set fish.foo cbc:verysecr1tkey
+#     /blowkey set #foo ${sec.data.fish.foo}
+#
+
+#
 # NOTE ABOUT DH1080:
 # =================
 #
