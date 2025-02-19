@@ -4,7 +4,3 @@ FiSH for weechat
 This is a python plugin for weechat.  It implements blowfish encryption and
 DH1080 key exchange and should be compatible with FiSH from
 http://fish.secure.la/
-
-Getting long lines cut off by the irc server? Try setting
-irc.*.split_msg_max_length to something smaller:
-    /set irc.server_default.split_msg_max_length 400
