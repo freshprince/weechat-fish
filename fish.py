@@ -34,7 +34,7 @@
 #
 # You can have an indicator showing whether messages in a buffer are encrypted
 # by adding the fish item to a bar:
-#     /eval /set weechat.bar.status.items ${weechat.bar.status.items},fish
+#     /blowkey setup_bar_item
 #
 # If you want to keep the keys stored on disk to be encrypted you can use
 # weechat secure data:
@@ -820,6 +820,28 @@ def fish_cmd_blowkey(data, buffer, args):
 
     argv = args.split(" ")
 
+    if argv[0] == 'setup_bar_item':
+        option_name = 'weechat.bar.status.items'
+        option = weechat.config_get(option_name)
+        if option is None:
+            weechat.prnt(buffer, f'{option_name} not found.')
+            return weechat.WEECHAT_RC_ERROR
+        value = weechat.config_string(option)
+        bar_item = re.compile(r'\b' + re.escape(BAR_ITEM_NAME) + r'\b')
+        if re.search(r'\b' + re.escape(BAR_ITEM_NAME) + r'\b', value):
+            weechat.prnt(buffer, 'Bar item already set up.')
+            return weechat.WEECHAT_RC_ERROR
+        if re.search(r'\bbuffer_name\b', value):
+            value = re.sub(
+                r'(buffer_name(\+[^,]*)?)',
+                r'\1+' + BAR_ITEM_NAME,
+                value)
+        else:
+            value = (value + ',' if value else '') + BAR_ITEM_NAME
+        weechat.command(buffer, f'/set {option_name} "{value}"')
+
+        return weechat.WEECHAT_RC_OK
+
     if (len(argv) > 2 and argv[1] == "-server"):
         server_name = argv[2]
         del argv[2]
@@ -981,7 +1003,8 @@ if (__name__ == "__main__" and import_ok and
         "blowkey", "Manage FiSH keys",
         "[list] | set [-server <server>] [<target>] <key> "
         "| remove [-server <server>] <target> "
-        "| exchange [-server <server>] [<nick>]",
+        "| exchange [-server <server>] [<nick>] "
+        "| setup_bar_item",
         "Add, change or remove key for target or perform DH1080 key"
         "exchange with <nick>.\n"
         "Target can be a channel or a nick.\n"
@@ -995,10 +1018,12 @@ if (__name__ == "__main__" and import_ok and
         "Set the key for a query:   /blowkey set nick secret+key\n"
         "List all keys:             /blowkey\n"
         "DH1080:                    /blowkey exchange nick\n"
+        "Set up bar item:           /blowkey setup_bar_item\n"
         "\nPlease read the source for a note about DH1080 key exchange\n",
         "list || set %(irc_channel)|%(nicks)|-server %(irc_servers) %- "
         "|| remove %(irc_channel)|%(nicks)|-server %(irc_servers) %- "
-        "|| exchange %(nick)|-server %(irc_servers) %-",
+        "|| exchange %(nick)|-server %(irc_servers) %- "
+        "|| setup_bar_item",
         "fish_cmd_blowkey", "")
 
     fish_config_init()
