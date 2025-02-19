@@ -682,7 +682,7 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
 
     try:
         key, cbc = key
-        clean, cbc = blowkey_unpack(text, key)
+        clean, cbc = blowcrypt_unpack(text, key)
         preamble = string[0:int(msg_info['pos_text'])]
         fish_announce_encrypted(buffer, target, cbc)
 
