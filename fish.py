@@ -163,6 +163,22 @@ def fish_config_init():
         fish_config_file, section_look, "item", "string",
         "string used to show FiSH being used in current buffer", "", 0, 0,
         "%", "%", 0, "", "", "", "", "", "")
+    fish_config_option["prefix"] = weechat.config_new_option(
+        fish_config_file, section_look, "prefix", "boolean",
+        "mark in prefix if message is encrypted or not", "", 0, 0,
+        "on", "on", 0, "", "", "", "", "", "")
+    fish_config_option["prefix_plaintext"] = weechat.config_new_option(
+        fish_config_file, section_look, "prefix.plaintext", "string",
+        "marker in prefix if message is plaintext", "", 0, 0,
+        "‼", "‼", 0, "", "", "", "", "", "")
+    fish_config_option["prefix_ecb"] = weechat.config_new_option(
+        fish_config_file, section_look, "prefix.ecb", "string",
+        "marker in prefix if message is encrypted in ecb mode", "", 0, 0,
+        "°", "°", 0, "", "", "", "", "", "")
+    fish_config_option["prefix_cbc"] = weechat.config_new_option(
+        fish_config_file, section_look, "prefix.cbc", "string",
+        "marker in prefix if message is encrypted in cbc mode", "", 0, 0,
+        "·", "·", 0, "", "", "", "", "", "")
 
     # color
     section_color = weechat.config_new_section(
@@ -255,23 +271,6 @@ def fish_key_delete(target: str):
         return True
 
     return False
-
-
-def fish_bar_cb(data, item, window, buffer, extra_info):
-    global fish_config_option
-
-    server_name = weechat.buffer_get_string(buffer, "localvar_server")
-    target_user = weechat.buffer_get_string(buffer, "localvar_channel")
-    target = f"{server_name}/{target_user}"
-
-    if fish_key_get(target) is None:
-        return ''
-
-    state = fish_state_get(buffer, 'unknown')
-    item = weechat.config_string(fish_config_option['item'])
-    color = weechat.color(weechat.config_color(fish_config_option[state]))
-
-    return f"{color}{item}"
 
 
 ##
@@ -685,7 +684,7 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
     try:
         key, cbc = key
         clean, cbc = blowcrypt_unpack(text, key)
-        preamble = string[0:int(msg_info['pos_text'])]
+        preamble = fish_preamble_tag(string[0:int(msg_info['pos_text'])], cbc)
         fish_announce_encrypted(buffer, target, cbc)
 
         return b'%s%s' % (preamble.encode(), clean)
@@ -728,7 +727,7 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
         clean, cbc = blowcrypt_unpack(text, key)
         if is_action:
             clean = b"\x01ACTION %s\x01" % clean
-        preamble = string[0:int(msg_info['pos_text'])]
+        preamble = fish_preamble_tag(string[0:int(msg_info['pos_text'])], cbc)
         fish_announce_encrypted(buffer, target, cbc)
 
         return b"%s%s" % (
@@ -764,7 +763,7 @@ def fish_modifier_in_decrypt_cb(data, modifier, server_name, string):
     key, cbc = key
     try:
         clean, cbc = blowcrypt_unpack(text, key)
-        preamble = string[0:int(msg_info['pos_text'])]
+        preamble = fish_preamble_tag(string[0:int(msg_info['pos_text'])], cbc)
         fish_announce_encrypted(buffer, target, cbc)
 
         return b"%s%s" % (preamble.encode(), clean)
@@ -799,6 +798,48 @@ def fish_modifier_out_encrypt_cb(data, modifier, server_name, string):
     fish_announce_encrypted(buffer, target, cbc)
 
     return "%s%s" % (preamble, cypher)
+
+
+def fish_line_cb(data: str, line):
+    global fish_config_option
+    buffer = line['buffer']
+    server_name = weechat.buffer_get_string(buffer, "localvar_server")
+    target_user = weechat.buffer_get_string(buffer, "localvar_channel")
+    target = f'{server_name}/{target_user}'
+    key = fish_key_get(target)
+    if key is None:
+        return {}
+    if not weechat.config_boolean(fish_config_option['prefix']):
+        return {}
+    state = 'plaintext'
+    for tag in line['tags'].split(','):
+        if tag.startswith('irc_tag_fish='):
+            _, state = tag.split('=')
+        if tag == 'self_msg':
+            _, cbc = key
+            state = 'cbc' if cbc else 'ecb'
+
+    item = weechat.config_string(fish_config_option[f'prefix_{state}'])
+    color = weechat.color(
+        weechat.config_color(fish_config_option[state]))
+    return {'prefix': line['prefix'] + f'{color}{item}'}
+
+
+def fish_bar_cb(data, item, window, buffer, extra_info):
+    global fish_config_option
+
+    server_name = weechat.buffer_get_string(buffer, "localvar_server")
+    target_user = weechat.buffer_get_string(buffer, "localvar_channel")
+    target = f"{server_name}/{target_user}"
+
+    if fish_key_get(target) is None:
+        return ''
+
+    state = fish_state_get(buffer, 'unknown')
+    item = weechat.config_string(fish_config_option['item'])
+    color = weechat.color(weechat.config_color(fish_config_option[state]))
+
+    return f"{color}{item}"
 
 
 def fish_unload_cb():
@@ -923,6 +964,17 @@ def fish_cmd_blowkey(data, buffer, args):
 # HELPERS
 #
 
+def fish_preamble_tag(preamble, cbc):
+    tags = f"{SCRIPT_NAME}=" + ('cbc' if cbc else 'ecb')
+    if preamble.startswith('@'):
+        preamble = re.sub(r'^@([^ ]*;|)fish(=[^ ;])?(;| )', r'@\1\3', preamble)
+        preamble = re.sub(r'^@', f"@{tags};", preamble)
+    else:
+        preamble = f'@{tags} {preamble}'
+
+    return preamble
+
+
 def fish_announce_encrypted(buffer, target, cbc):
     global fish_config_option
     new_state = 'cbc' if cbc else 'ecb'
@@ -1032,6 +1084,9 @@ if (__name__ == "__main__" and import_ok and
 
     fish_bar_item = weechat.bar_item_new(
         '(extra)' + BAR_ITEM_NAME, 'fish_bar_cb', '')
+
+    weechat.hook_line(
+        "", "", "irc_privmsg,irc_topic,irc_notice", "fish_line_cb", "")
 
     weechat.hook_modifier("irc_in_notice", "fish_modifier_in_notice_cb", "")
     weechat.hook_modifier("irc_in_privmsg", "fish_modifier_in_privmsg_cb", "")
