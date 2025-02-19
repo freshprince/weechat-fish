@@ -793,7 +793,7 @@ def fish_modifier_out_encrypt_cb(data, modifier, server_name, string):
         return string
 
     key, cbc = key
-    cypher = blowcrypt_pack(text.encode(), key, cbc)
+    cypher = blowcrypt_pack(text.encode(), key, cbc) if text else ''
     preamble = string[0:int(msg_info['pos_text'])]
     fish_announce_encrypted(buffer, target, cbc)
 
