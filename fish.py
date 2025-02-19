@@ -794,7 +794,7 @@ def fish_modifier_out_encrypt_cb(data, modifier, server_name, string):
 
     key, cbc = key
     cypher = blowcrypt_pack(text.encode(), key, cbc) if text else ''
-    preamble = string[0:int(msg_info['pos_text'])]
+    preamble = string[0:int(msg_info['pos_text'])] if text else string
     fish_announce_encrypted(buffer, target, cbc)
 
     return "%s%s" % (preamble, cypher)
@@ -1086,7 +1086,7 @@ if (__name__ == "__main__" and import_ok and
         '(extra)' + BAR_ITEM_NAME, 'fish_bar_cb', '')
 
     weechat.hook_line(
-        "", "", "irc_privmsg,irc_topic,irc_notice", "fish_line_cb", "")
+        "", "", "irc_privmsg,irc_topic,irc_notice,irc_332", "fish_line_cb", "")
 
     weechat.hook_modifier("irc_in_notice", "fish_modifier_in_notice_cb", "")
     weechat.hook_modifier("irc_in_privmsg", "fish_modifier_in_privmsg_cb", "")
