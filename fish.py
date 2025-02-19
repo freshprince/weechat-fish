@@ -218,6 +218,7 @@ def fish_key_set(target: str, key: str, cbc: bool):
     global fish_config_file, fish_config_keys
 
     value = f"cbc:{key}" if cbc else key
+    target = target.lower()
 
     return fish_config_keys_create_cb(
         "", fish_config_file, fish_config_keys, target, value)
@@ -226,6 +227,7 @@ def fish_key_set(target: str, key: str, cbc: bool):
 def fish_key_get(target: str):
     global fish_config_file, fish_config_keys
 
+    target = target.lower()
     option = weechat.config_search_option(
         fish_config_file, fish_config_keys, target)
     if not option:
@@ -244,6 +246,7 @@ def fish_key_get(target: str):
 def fish_key_delete(target: str):
     global fish_config_file, fish_config_keys
 
+    target = target.lower()
     option = weechat.config_search_option(
         fish_config_file, fish_config_keys, target)
     if option:
@@ -260,9 +263,8 @@ def fish_bar_cb(data, item, window, buffer, extra_info):
     server_name = weechat.buffer_get_string(buffer, "localvar_server")
     target_user = weechat.buffer_get_string(buffer, "localvar_channel")
     target = f"{server_name}/{target_user}"
-    targetl = target.lower()
 
-    if fish_key_get(targetl) is None:
+    if fish_key_get(target) is None:
         return ''
 
     state = fish_state_get(buffer, 'unknown')
@@ -650,7 +652,7 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
             target in fish_DH1080ctx and
             dh1080_unpack(text, fish_DH1080ctx[target])):
         fish_alert(buffer, "Key exchange for %s successful" % target)
-        fish_key_set(target.lower(), dh1080_secret(fish_DH1080ctx[target]),
+        fish_key_set(target, dh1080_secret(fish_DH1080ctx[target]),
                      fish_DH1080ctx[target].cbc)
         del fish_DH1080ctx[target]
 
@@ -663,17 +665,17 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
             fish_DH1080ctx.__setitem__(target, DH1080Ctx()) is None and
             dh1080_unpack(text, fish_DH1080ctx[target])):
         reply = dh1080_pack(fish_DH1080ctx[target])
-        fish_key_delete(target.lower())
+        fish_key_delete(target)
         weechat.command(
             buffer, f"/mute notice -server {server_name} {dest} {reply}")
-        fish_key_set(target.lower(), dh1080_secret(
+        fish_key_set(target, dh1080_secret(
             fish_DH1080ctx[target]), fish_DH1080ctx[target].cbc)
         fish_alert(buffer, f"Key exchange initiated by {target}. Key set.")
         del fish_DH1080ctx[target]
 
         return ""
 
-    key = fish_key_get(target.lower())
+    key = fish_key_get(target)
     if key is None:
         return string
     if not (text.startswith('+OK ') or text.startswith('mcps ')):
@@ -709,7 +711,7 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
     target = "%s/%s" % (server_name, dest)
     buffer = weechat.info_get("irc_buffer", f"{server_name},{dest}")
 
-    key = fish_key_get(target.lower())
+    key = fish_key_get(target)
     if key is None:
         return string
 
@@ -751,7 +753,7 @@ def fish_modifier_in_decrypt_cb(data, modifier, server_name, string):
     buffer = weechat.info_get("irc_buffer", "%s,%s" % (
         server_name, msg_info['channel']))
 
-    key = fish_key_get(target.lower())
+    key = fish_key_get(target)
     text = msg_info['text']
     if key is None or not text:
         return string
@@ -786,7 +788,7 @@ def fish_modifier_out_encrypt_cb(data, modifier, server_name, string):
     buffer = weechat.info_get("irc_buffer", "%s,%s" % (
         server_name, msg_info['channel']))
 
-    key = fish_key_get(target.lower())
+    key = fish_key_get(target)
     text = msg_info['text']
     if key is None:
         return string
@@ -876,7 +878,6 @@ def fish_cmd_blowkey(data, buffer, args):
             argv2eol = args[args.find(" ") + 1:]
 
     target = "%s/%s" % (server_name, target_user)
-    targetl = ("%s/%s" % (server_name, target_user)).lower()
 
     if argv[0] == "set":
         cbc = False
@@ -885,7 +886,7 @@ def fish_cmd_blowkey(data, buffer, args):
             cbc = True
             key = argv2eol[4:]
 
-        fish_key_set(targetl, key, cbc)
+        fish_key_set(target, key, cbc)
 
         weechat.prnt(buffer, "set key for %s to %s" % (target, argv2eol))
 
@@ -895,7 +896,7 @@ def fish_cmd_blowkey(data, buffer, args):
         if not len(argv) == 2:
             return weechat.WEECHAT_RC_ERROR
 
-        if not fish_key_delete(targetl):
+        if not fish_key_delete(target):
             return weechat.WEECHAT_RC_ERROR
 
         weechat.prnt(buffer, "removed key for %s" % target)
@@ -907,9 +908,9 @@ def fish_cmd_blowkey(data, buffer, args):
             return weechat.WEECHAT_RC_ERROR
 
         weechat.prnt(buffer, "Initiating DH1080 Exchange with %s" % target)
-        fish_DH1080ctx[targetl] = DH1080Ctx()
-        msg = dh1080_pack(fish_DH1080ctx[targetl])
-        fish_key_delete(targetl)
+        fish_DH1080ctx[target] = DH1080Ctx()
+        msg = dh1080_pack(fish_DH1080ctx[target])
+        fish_key_delete(target)
         weechat.command(buffer, "/mute notice -server %s %s %s" % (
             server_name, target_user, msg))
 
