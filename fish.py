@@ -32,8 +32,8 @@
 # irc.*.split_msg_max_length to something smaller:
 #     /set irc.server_default.split_msg_max_length 400
 #
-# You can have an indicator showing whether messages in a buffer are encrypted
-# by adding the fish item to a bar:
+# You can have an indicator showing whether a key is set and messages in a
+# buffer are encrypted by adding the fish item to a bar:
 #     /blowkey setup_bar_item
 #
 # If you want to keep the keys stored on disk to be encrypted you can use
