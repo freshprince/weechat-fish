@@ -156,7 +156,7 @@ def fish_config_init():
     fish_config_option["announce"] = weechat.config_new_option(
         fish_config_file, section_look, "announce", "boolean",
         "announce if messages are being encrypted or not", "", 0, 0,
-        "on", "on", 0, "", "", "", "", "", "")
+        "off", "off", 0, "", "", "", "", "", "")
     fish_config_option["marker"] = weechat.config_new_option(
         fish_config_file, section_look, "marker",
         "string", "marker for important FiSH messages", "", 0, 0,
