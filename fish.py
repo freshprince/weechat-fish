@@ -882,6 +882,7 @@ def fish_bar_cb(data, item, window, buffer, extra_info):
 def fish_modifier_input_text(data, modifier, server_name, string):
     if weechat.string_is_command_char(string):
         return string
+
     buffer = weechat.current_buffer()
     server_name = weechat.buffer_get_string(buffer, 'localvar_server')
     target_user = weechat.buffer_get_string(buffer, 'localvar_channel')
@@ -890,7 +891,7 @@ def fish_modifier_input_text(data, modifier, server_name, string):
     if fish_key_get(target.lower()) is None:
         return string
 
-    return "%s" % (fish_msg_w_marker(string.encode()).decode())
+    return fish_msg_w_marker(string.encode()).decode()
 
 
 def fish_unload_cb():
@@ -905,21 +906,8 @@ def fish_unload_cb():
 #
 
 def fish_cmd_blowkey(data, buffer, args):
-    global fish_DH1080ctx
-
     if args in ['', 'list']:
         fish_list_keys(buffer)
-
-        return weechat.WEECHAT_RC_OK
-
-    elif args == "genkey":
-        if fish_secure_key():
-            weechat.prnt(buffer, 'Key already set.')
-            return weechat.WEECHAT_RC_ERROR
-        newKey = blowcrypt_b64encode(urandom(32))
-        weechat.command(
-            buffer, f'/set {CONFIG_FILE_NAME}.secure.key ${{sec.data.fish}}')
-        weechat.command(buffer, f'/secure set fish {newKey}')
 
         return weechat.WEECHAT_RC_OK
 
@@ -943,6 +931,17 @@ def fish_cmd_blowkey(data, buffer, args):
         else:
             value = (value + ',' if value else '') + BAR_ITEM_NAME
         weechat.command(buffer, f'/set {option_name} "{value}"')
+
+        return weechat.WEECHAT_RC_OK
+
+    if argv[0] == "genkey":
+        if fish_secure_key():
+            weechat.prnt(buffer, 'Key already set.')
+            return weechat.WEECHAT_RC_ERROR
+        new_key = blowcrypt_b64encode(urandom(32))
+        weechat.command(
+            buffer, f'/set {CONFIG_FILE_NAME}.secure.key ${{sec.data.fish}}')
+        weechat.command(buffer, f'/secure set fish {new_key}')
 
         return weechat.WEECHAT_RC_OK
 
@@ -1026,8 +1025,6 @@ def fish_cmd_blowkey(data, buffer, args):
 #
 
 def fish_secure_key():
-    global fish_config_option
-
     return weechat.string_eval_expression(
         weechat.config_string(fish_config_option["key"]), {}, {}, {})
 
@@ -1118,20 +1115,22 @@ def fish_msg_w_marker(msg):
         fish_config_option["mark_encrypted"]).encode()
     if weechat.config_string(fish_config_option["mark_position"]) == "end":
         return b"%s%s" % (msg, marker)
-    elif weechat.config_string(fish_config_option["mark_position"]) == "begin":
+
+    if weechat.config_string(fish_config_option["mark_position"]) == "begin":
         return b"%s%s" % (marker, msg)
-    else:
-        return msg
+
+    return msg
 
 
 def fish_msg_wo_marker(msg):
     marker = weechat.config_string(fish_config_option["mark_encrypted"])
     if weechat.config_string(fish_config_option["mark_position"]) == "end":
         return msg[0:-len(marker)]
-    elif weechat.config_string(fish_config_option["mark_position"]) == "begin":
+
+    if weechat.config_string(fish_config_option["mark_position"]) == "begin":
         return msg[len(marker):]
-    else:
-        return msg
+
+    return msg
 
 
 #
