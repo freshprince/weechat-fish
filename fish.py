@@ -63,6 +63,7 @@ import struct
 import hashlib
 import base64
 import sys
+import traceback
 from os import urandom
 
 SCRIPT_NAME = "fish"
@@ -72,6 +73,7 @@ SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "FiSH for weechat"
 CONFIG_FILE_NAME = SCRIPT_NAME
 BAR_ITEM_NAME = SCRIPT_NAME
+TAG_NAME = SCRIPT_NAME
 
 import_ok = True
 
@@ -667,20 +669,22 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
         return string
     if not (text.startswith('+OK ') or text.startswith('mcps ')):
         fish_announce_unencrypted(buffer, target)
-        return string
+        return fish_tag(string)
 
     try:
         key, cbc = key
         clean, cbc = blowcrypt_unpack(text, key)
-        preamble = fish_preamble_tag(string[0:int(msg_info['pos_text'])], cbc)
+        preamble = fish_tag(
+            string[0:int(msg_info['pos_text'])],
+            'cbc' if cbc else 'ecb')
         fish_announce_encrypted(buffer, target, cbc)
 
         return b'%s%s' % (preamble.encode(), clean)
 
-    except Exception as e:
+    except Exception:
+        fish_alert('', traceback.format_exc())
         fish_announce_unencrypted(buffer, target)
-
-        raise e
+        return fish_tag(string)
 
 
 def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
@@ -709,22 +713,24 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
         text = text[8:-1]
     if not (text.startswith('+OK ') or text.startswith('mcps ')):
         fish_announce_unencrypted(buffer, target)
-        return string
+        return fish_tag(string)
 
     try:
         clean, cbc = blowcrypt_unpack(text, key)
         if is_action:
             clean = b"\x01ACTION %s\x01" % clean
-        preamble = fish_preamble_tag(string[0:int(msg_info['pos_text'])], cbc)
+        preamble = fish_tag(
+                string[0:int(msg_info['pos_text'])],
+                'cbc' if cbc else 'ecb')
         fish_announce_encrypted(buffer, target, cbc)
 
         return b"%s%s" % (
             preamble.encode(), clean)
 
-    except Exception as e:
+    except Exception:
+        fish_alert('', traceback.format_exc())
         fish_announce_unencrypted(buffer, target)
-
-        raise e
+        return fish_tag(string)
 
 
 def fish_modifier_in_decrypt_cb(data, modifier, server_name, string):
@@ -742,24 +748,29 @@ def fish_modifier_in_decrypt_cb(data, modifier, server_name, string):
 
     key = fish_key_get(target)
     text = msg_info['text']
-    if key is None or not text:
-        return string
-    if not (text.startswith('+OK ') or text.startswith('mcps ')):
-        fish_announce_unencrypted(buffer, target)
+    if key is None:
         return string
 
     key, cbc = key
+    if not text:
+        return fish_tag(string, 'cbc' if cbc else 'ecb')
+    if not (text.startswith('+OK ') or text.startswith('mcps ')):
+        fish_announce_unencrypted(buffer, target)
+        return fish_tag(string)
+
     try:
         clean, cbc = blowcrypt_unpack(text, key)
-        preamble = fish_preamble_tag(string[0:int(msg_info['pos_text'])], cbc)
+        preamble = fish_tag(
+            string[0:int(msg_info['pos_text'])],
+            'cbc' if cbc else 'ecb')
         fish_announce_encrypted(buffer, target, cbc)
 
         return b"%s%s" % (preamble.encode(), clean)
 
-    except Exception as e:
+    except Exception:
+        fish_alert('', traceback.format_exc())
         fish_announce_unencrypted(buffer, target)
-
-        raise e
+        return fish_tag(string)
 
 
 def fish_modifier_out_encrypt_cb(data, modifier, server_name, string):
@@ -948,15 +959,20 @@ def fish_cmd_blowkey(data, buffer, args):
 # HELPERS
 #
 
-def fish_preamble_tag(preamble, cbc):
-    tags = f"{SCRIPT_NAME}=" + ('cbc' if cbc else 'ecb')
-    if preamble.startswith('@'):
-        preamble = re.sub(r'^@([^ ]*;|)fish(=[^ ;])?(;| )', r'@\1\3', preamble)
-        preamble = re.sub(r'^@', f"@{tags};", preamble)
-    else:
-        preamble = f'@{tags} {preamble}'
+def fish_tag(msg, mode=None):
+    tag = f'{TAG_NAME}={mode}' if mode is not None else None
+    if msg.startswith('@'):
+        msg = re.sub(
+            r'^@([^ ]*;|)' +
+            re.escape(TAG_NAME) +
+            r'(=[^ ;])?(;| )', r'@\1\3',
+            msg)
+        if tag is not None:
+            msg = re.sub(r'^@', f"@{tag};", msg)
+    elif tag is not None:
+        msg = f'@{tag} {msg}'
 
-    return preamble
+    return msg
 
 
 def fish_announce_encrypted(buffer, target, cbc):
