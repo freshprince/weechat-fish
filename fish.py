@@ -34,8 +34,8 @@
 # irc.*.split_msg_max_length to something smaller:
 #     /set irc.server_default.split_msg_max_length 400
 #
-# You can have an indicator showing whether messages in a buffer are encrypted
-# by adding the fish item to a bar:
+# You can have an indicator showing whether a key is set and messages in a
+# buffer are encrypted by adding the fish item to a bar:
 #     /blowkey setup_bar_item
 #
 # If you want to keep the keys stored on disk to be encrypted you can use
@@ -65,15 +65,17 @@ import struct
 import hashlib
 import base64
 import sys
+import traceback
 from os import urandom
 
 SCRIPT_NAME = "fish"
 SCRIPT_AUTHOR = "David Flatz <david@upcs.at>"
-SCRIPT_VERSION = "1.0rc1"
+SCRIPT_VERSION = "1.0rc2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "FiSH for weechat"
 CONFIG_FILE_NAME = SCRIPT_NAME
 BAR_ITEM_NAME = SCRIPT_NAME
+TAG_NAME = SCRIPT_NAME
 
 import_ok = True
 
@@ -122,15 +124,15 @@ def fish_config_keys_create_cb(data, config_file, section, option_name, value):
     option = weechat.config_search_option(config_file, section, option_name)
     if option:
         return weechat.config_option_set(option, value, 1)
-    else:
-        option = weechat.config_new_option(
-            config_file, section, option_name, "string", "", "", 0, 0, "",
-            value, 0, "", "", "", "", "", "")
 
-        if not option:
-            return weechat.WEECHAT_CONFIG_OPTION_SET_ERROR
-        weechat.bar_item_update(BAR_ITEM_NAME)
-        return weechat.WEECHAT_CONFIG_OPTION_SET_OK_SAME_VALUE
+    option = weechat.config_new_option(
+        config_file, section, option_name, "string", "", "", 0, 0, "",
+        value, 0, "", "", "", "", "", "")
+    if not option:
+        return weechat.WEECHAT_CONFIG_OPTION_SET_ERROR
+
+    weechat.bar_item_update(BAR_ITEM_NAME)
+    return weechat.WEECHAT_CONFIG_OPTION_SET_OK_SAME_VALUE
 
 
 def fish_config_keys_delete_cb(data, config_file, section, option):
@@ -168,7 +170,7 @@ def fish_config_init():
     fish_config_option["announce"] = weechat.config_new_option(
         fish_config_file, section_look, "announce", "boolean",
         "announce if messages are being encrypted or not", "", 0, 0,
-        "on", "on", 0, "", "", "", "", "", "")
+        "off", "off", 0, "", "", "", "", "", "")
     fish_config_option["marker"] = weechat.config_new_option(
         fish_config_file, section_look, "marker",
         "string", "marker for important FiSH messages", "", 0, 0,
@@ -177,6 +179,22 @@ def fish_config_init():
         fish_config_file, section_look, "item", "string",
         "string used to show FiSH being used in current buffer", "", 0, 0,
         "%", "%", 0, "", "", "", "", "", "")
+    fish_config_option["prefix"] = weechat.config_new_option(
+        fish_config_file, section_look, "prefix", "boolean",
+        "mark in prefix if message is encrypted or not", "", 0, 0,
+        "on", "on", 0, "", "", "", "", "", "")
+    fish_config_option["prefix_plaintext"] = weechat.config_new_option(
+        fish_config_file, section_look, "prefix.plaintext", "string",
+        "marker in prefix if message is plaintext", "", 0, 0,
+        "‼", "‼", 0, "", "", "", "", "", "")
+    fish_config_option["prefix_ecb"] = weechat.config_new_option(
+        fish_config_file, section_look, "prefix.ecb", "string",
+        "marker in prefix if message is encrypted in ecb mode", "", 0, 0,
+        "°", "°", 0, "", "", "", "", "", "")
+    fish_config_option["prefix_cbc"] = weechat.config_new_option(
+        fish_config_file, section_look, "prefix.cbc", "string",
+        "marker in prefix if message is encrypted in cbc mode", "", 0, 0,
+        "·", "·", 0, "", "", "", "", "", "")
 
     fish_config_option["mark_position"] = weechat.config_new_option(
         fish_config_file, section_look, "mark_position", "integer",
@@ -240,31 +258,24 @@ def fish_config_init():
 
 
 def fish_config_read():
-    global fish_config_file
-
     return weechat.config_read(fish_config_file)
 
 
 def fish_config_write():
-    global fish_config_file
-
     return weechat.config_write(fish_config_file)
 
 
 def fish_key_set(target: str, key: str, cbc: bool):
-    global fish_config_file, fish_config_keys
-
     value = f"cbc:{key}" if cbc else key
+    target = target.lower()
 
     return fish_config_keys_create_cb(
         "", fish_config_file, fish_config_keys, target, value)
 
 
 def fish_key_get(target: str):
-    global fish_config_file, fish_config_keys
-
-    secure_key = fish_secure_key()
-    if secure_key:
+    target = target.lower()
+    if secure_key := fish_secure_key():
         target = blowcrypt_pack(target.encode(), secure_key)
 
     option = weechat.config_search_option(
@@ -287,10 +298,8 @@ def fish_key_get(target: str):
 
 
 def fish_key_delete(target: str):
-    global fish_config_file, fish_config_keys
-
-    secure_key = fish_secure_key()
-    if secure_key:
+    target = target.lower()
+    if secure_key := fish_secure_key():
         target = blowcrypt_pack(target.encode(), secure_key)
 
     option = weechat.config_search_option(
@@ -301,24 +310,6 @@ def fish_key_delete(target: str):
         return True
 
     return False
-
-
-def fish_bar_cb(data, item, window, buffer, extra_info):
-    global fish_config_option
-
-    server_name = weechat.buffer_get_string(buffer, "localvar_server")
-    target_user = weechat.buffer_get_string(buffer, "localvar_channel")
-    target = f"{server_name}/{target_user}"
-    targetl = target.lower()
-
-    if fish_key_get(targetl) is None:
-        return ''
-
-    state = fish_state_get(buffer, 'unknown')
-    item = weechat.config_string(fish_config_option['item'])
-    color = weechat.color(weechat.config_color(fish_config_option[state]))
-
-    return f"{color}{item}"
 
 
 ##
@@ -351,10 +342,10 @@ def blowcrypt_b64encode(s):
     res = ''
     while s:
         left, right = struct.unpack('>LL', s[:8])
-        for i in range(6):
+        for _ in range(6):
             res += B64[right & 0x3f]
             right >>= 6
-        for i in range(6):
+        for _ in range(6):
             res += B64[left & 0x3f]
             left >>= 6
         s = s[8:]
@@ -396,9 +387,9 @@ def blowcrypt_pack(msg, key, cbc=False):
             key.encode('utf-8'), CryptoBlowfish.MODE_CBC)
         return '+OK *' + base64.b64encode(
             cipher.iv + cipher.encrypt(padto(msg, 8))).decode('utf-8')
-    else:
-        cipher = Blowfish(key)
-        return '+OK ' + blowcrypt_b64encode(cipher.encrypt(padto(msg, 8)))
+
+    cipher = Blowfish(key)
+    return '+OK ' + blowcrypt_b64encode(cipher.encrypt(padto(msg, 8)))
 
 
 def blowcrypt_unpack(msg, key):
@@ -434,8 +425,8 @@ def blowcrypt_unpack(msg, key):
 
         try:
             raw = blowcrypt_b64decode(padto(rest, 12))
-        except TypeError:
-            raise ValueError
+        except TypeError as e:
+            raise ValueError from e
         if not raw:
             raise ValueError
 
@@ -612,8 +603,8 @@ def dh1080_unpack(msg, ctx):
             ctx.secret = pow(public, ctx.private, p_dh1080)
             ctx.cbc = "CBC" in rest or cmd == "DH1080_INIT_CBC"
 
-        except Exception:
-            raise ValueError
+        except Exception as e:
+            raise ValueError from e
 
     elif ctx.state == 1:
         if not msg.startswith("DH1080_FINISH "):
@@ -629,8 +620,8 @@ def dh1080_unpack(msg, ctx):
             ctx.secret = pow(public, ctx.private, p_dh1080)
             ctx.cbc = "CBC" in rest
 
-        except Exception:
-            raise ValueError
+        except Exception as e:
+            raise ValueError from e
 
     return True
 
@@ -665,9 +656,7 @@ def sha256(s):
 #
 
 def fish_modifier_in_notice_cb(data, modifier, server_name, string):
-    global fish_DH1080ctx
-
-    if type(string) is bytes:
+    if isinstance(string, bytes):
         return string
 
     msg_info = weechat.info_get_hashtable('irc_message_parse', {
@@ -681,15 +670,15 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
         dest = msg_info['nick']
     else:
         dest = msg_info['channel']
-    target = "%s/%s" % (server_name, dest)
-    buffer = weechat.info_get("irc_buffer", f"{server_name},{dest}")
+    target = f'{server_name}/{dest}'
+    buffer = weechat.info_get("irc_buffer", f'{server_name},{dest}')
 
     text = msg_info['text']
     if (is_direct and text.startswith('DH1080_FINISH ') and
             target in fish_DH1080ctx and
             dh1080_unpack(text, fish_DH1080ctx[target])):
-        fish_alert(buffer, "Key exchange for %s successful" % target)
-        fish_key_set(target.lower(), dh1080_secret(fish_DH1080ctx[target]),
+        fish_alert(buffer, f'Key exchange for {target} successful')
+        fish_key_set(target, dh1080_secret(fish_DH1080ctx[target]),
                      fish_DH1080ctx[target].cbc)
         del fish_DH1080ctx[target]
 
@@ -702,54 +691,56 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
             fish_DH1080ctx.__setitem__(target, DH1080Ctx()) is None and
             dh1080_unpack(text, fish_DH1080ctx[target])):
         reply = dh1080_pack(fish_DH1080ctx[target])
-        fish_key_delete(target.lower())
+        fish_key_delete(target)
         weechat.command(
             buffer, f"/mute notice -server {server_name} {dest} {reply}")
-        fish_key_set(target.lower(), dh1080_secret(
+        fish_key_set(target, dh1080_secret(
             fish_DH1080ctx[target]), fish_DH1080ctx[target].cbc)
         fish_alert(buffer, f"Key exchange initiated by {target}. Key set.")
         del fish_DH1080ctx[target]
 
         return ""
 
-    key = fish_key_get(target.lower())
+    key = fish_key_get(target)
     if key is None:
         return string
     if not (text.startswith('+OK ') or text.startswith('mcps ')):
         fish_announce_unencrypted(buffer, target)
-        return string
+        return fish_tag(string)
 
     try:
         key, cbc = key
         clean, cbc = blowcrypt_unpack(text, key)
         clean = fish_msg_w_marker(clean)
-        preamble = string[0:int(msg_info['pos_text'])]
+        preamble = fish_tag(
+            string[0:int(msg_info['pos_text'])],
+            'cbc' if cbc else 'ecb')
         fish_announce_encrypted(buffer, target, cbc)
 
         return b'%s%s' % (preamble.encode(), clean)
 
-    except Exception as e:
+    except Exception:
+        fish_alert('', traceback.format_exc())
         fish_announce_unencrypted(buffer, target)
-
-        raise e
+        return fish_tag(string)
 
 
 def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
-    if type(string) is bytes:
+    if isinstance(string, bytes):
         return string
 
     msg_info = weechat.info_get_hashtable('irc_message_parse', {
         'message': string,
         'server': server_name,
     })
-    if msg_info['channel'] == weechat.info_get("irc_nick", server_name):
+    if msg_info['channel'] == weechat.info_get('irc_nick', server_name):
         dest = msg_info['nick']
     else:
         dest = msg_info['channel']
-    target = "%s/%s" % (server_name, dest)
-    buffer = weechat.info_get("irc_buffer", f"{server_name},{dest}")
+    target = f'{server_name}/{dest}'
+    buffer = weechat.info_get('irc_buffer', f'{server_name},{dest}')
 
-    key = fish_key_get(target.lower())
+    key = fish_key_get(target)
     if key is None:
         return string
 
@@ -760,27 +751,29 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
         text = text[8:-1]
     if not (text.startswith('+OK ') or text.startswith('mcps ')):
         fish_announce_unencrypted(buffer, target)
-        return string
+        return fish_tag(string)
 
     try:
         clean, cbc = blowcrypt_unpack(text, key)
         clean = fish_msg_w_marker(clean)
         if is_action:
             clean = b"\x01ACTION %s\x01" % clean
-        preamble = string[0:int(msg_info['pos_text'])]
+        preamble = fish_tag(
+                string[0:int(msg_info['pos_text'])],
+                'cbc' if cbc else 'ecb')
         fish_announce_encrypted(buffer, target, cbc)
 
         return b"%s%s" % (
             preamble.encode(), clean)
 
-    except Exception as e:
+    except Exception:
+        fish_alert('', traceback.format_exc())
         fish_announce_unencrypted(buffer, target)
-
-        raise e
+        return fish_tag(string)
 
 
 def fish_modifier_in_decrypt_cb(data, modifier, server_name, string):
-    if type(string) is bytes:
+    if isinstance(string, bytes):
         return string
 
     msg_info = weechat.info_get_hashtable('irc_message_parse', {
@@ -788,35 +781,40 @@ def fish_modifier_in_decrypt_cb(data, modifier, server_name, string):
         'server': server_name,
     })
 
-    target = "%s/%s" % (server_name, msg_info['channel'])
-    buffer = weechat.info_get("irc_buffer", "%s,%s" % (
-        server_name, msg_info['channel']))
+    target = f"{server_name}/{msg_info['channel']}"
+    buffer = weechat.info_get(
+        "irc_buffer", f"{server_name},{msg_info['channel']}")
 
-    key = fish_key_get(target.lower())
+    key = fish_key_get(target)
     text = msg_info['text']
-    if key is None or not text:
-        return string
-    if not (text.startswith('+OK ') or text.startswith('mcps ')):
-        fish_announce_unencrypted(buffer, target)
+    if key is None:
         return string
 
     key, cbc = key
+    if not text:
+        return fish_tag(string, 'cbc' if cbc else 'ecb')
+    if not (text.startswith('+OK ') or text.startswith('mcps ')):
+        fish_announce_unencrypted(buffer, target)
+        return fish_tag(string)
+
     try:
         clean, cbc = blowcrypt_unpack(text, key)
         clean = fish_msg_w_marker(clean)
-        preamble = string[0:int(msg_info['pos_text'])]
+        preamble = fish_tag(
+            string[0:int(msg_info['pos_text'])],
+            'cbc' if cbc else 'ecb')
         fish_announce_encrypted(buffer, target, cbc)
 
         return b"%s%s" % (preamble.encode(), clean)
 
-    except Exception as e:
+    except Exception:
+        fish_alert('', traceback.format_exc())
         fish_announce_unencrypted(buffer, target)
-
-        raise e
+        return fish_tag(string)
 
 
 def fish_modifier_out_encrypt_cb(data, modifier, server_name, string):
-    if type(string) is bytes:
+    if isinstance(string, bytes):
         return string
 
     msg_info = weechat.info_get_hashtable('irc_message_parse', {
@@ -824,21 +822,61 @@ def fish_modifier_out_encrypt_cb(data, modifier, server_name, string):
         'server': server_name,
     })
 
-    target = "%s/%s" % (server_name, msg_info['channel'])
-    buffer = weechat.info_get("irc_buffer", "%s,%s" % (
-        server_name, msg_info['channel']))
+    target = f"{server_name}/{msg_info['channel']}"
+    buffer = weechat.info_get(
+        "irc_buffer", f"{server_name},{msg_info['channel']}")
 
-    key = fish_key_get(target.lower())
+    key = fish_key_get(target)
+    text = msg_info['text']
     if key is None:
         return string
 
     key, cbc = key
     text = fish_msg_wo_marker(msg_info['text'])
-    cypher = blowcrypt_pack(text.encode(), key, cbc)
-    preamble = string[0:int(msg_info['pos_text'])]
+    cypher = blowcrypt_pack(text.encode(), key, cbc) if text else ''
+    preamble = string[0:int(msg_info['pos_text'])] if text else string
     fish_announce_encrypted(buffer, target, cbc)
 
-    return "%s%s" % (preamble, cypher)
+    return f'{preamble}{cypher}'
+
+
+def fish_line_cb(data: str, line):
+    buffer = line['buffer']
+    server_name = weechat.buffer_get_string(buffer, "localvar_server")
+    target_user = weechat.buffer_get_string(buffer, "localvar_channel")
+    target = f'{server_name}/{target_user}'
+    key = fish_key_get(target)
+    if key is None:
+        return {}
+    if not weechat.config_boolean(fish_config_option['prefix']):
+        return {}
+    state = 'plaintext'
+    for tag in line['tags'].split(','):
+        if tag.startswith('irc_tag_fish='):
+            _, state = tag.split('=')
+        if tag == 'self_msg':
+            _, cbc = key
+            state = 'cbc' if cbc else 'ecb'
+
+    item = weechat.config_string(fish_config_option[f'prefix_{state}'])
+    color = weechat.color(
+        weechat.config_color(fish_config_option[state]))
+    return {'prefix': line['prefix'] + f'{color}{item}'}
+
+
+def fish_bar_cb(data, item, window, buffer, extra_info):
+    server_name = weechat.buffer_get_string(buffer, "localvar_server")
+    target_user = weechat.buffer_get_string(buffer, "localvar_channel")
+    target = f"{server_name}/{target_user}"
+
+    if fish_key_get(target) is None:
+        return ''
+
+    state = fish_state_get(buffer, 'unknown')
+    item = weechat.config_string(fish_config_option['item'])
+    color = weechat.color(weechat.config_color(fish_config_option[state]))
+
+    return f"{color}{item}"
 
 
 def fish_modifier_input_text(data, modifier, server_name, string):
@@ -869,7 +907,7 @@ def fish_unload_cb():
 def fish_cmd_blowkey(data, buffer, args):
     global fish_DH1080ctx
 
-    if args == "" or args == "list":
+    if args in ['', 'list']:
         fish_list_keys(buffer)
 
         return weechat.WEECHAT_RC_OK
@@ -894,7 +932,6 @@ def fish_cmd_blowkey(data, buffer, args):
             weechat.prnt(buffer, f'{option_name} not found.')
             return weechat.WEECHAT_RC_ERROR
         value = weechat.config_string(option)
-        bar_item = re.compile(r'\b' + re.escape(BAR_ITEM_NAME) + r'\b')
         if re.search(r'\b' + re.escape(BAR_ITEM_NAME) + r'\b', value):
             weechat.prnt(buffer, 'Bar item already set up.')
             return weechat.WEECHAT_RC_ERROR
@@ -925,7 +962,7 @@ def fish_cmd_blowkey(data, buffer, args):
     if argv[0] == "exchange" and len(argv) == 1 and buffer_type == "private":
         target_user = weechat.buffer_get_string(buffer, "localvar_channel")
     elif (argv[0] == "set" and
-            (buffer_type == "private" or buffer_type == "channel") and
+            buffer_type in ['private', 'channel'] and
             len(argv) == 2):
         target_user = weechat.buffer_get_string(buffer, "localvar_channel")
     elif len(argv) < 2:
@@ -942,8 +979,7 @@ def fish_cmd_blowkey(data, buffer, args):
         else:
             argv2eol = args[args.find(" ") + 1:]
 
-    target = "%s/%s" % (server_name, target_user)
-    targetl = ("%s/%s" % (server_name, target_user)).lower()
+    target = f'{server_name}/{target_user}'
 
     if argv[0] == "set":
         cbc = False
@@ -952,9 +988,9 @@ def fish_cmd_blowkey(data, buffer, args):
             cbc = True
             key = argv2eol[4:]
 
-        fish_key_set(targetl, key, cbc)
+        fish_key_set(target, key, cbc)
 
-        weechat.prnt(buffer, "set key for %s to %s" % (target, argv2eol))
+        weechat.prnt(buffer, f'set key for {target} to {argv2eol}')
 
         return weechat.WEECHAT_RC_OK
 
@@ -962,10 +998,10 @@ def fish_cmd_blowkey(data, buffer, args):
         if not len(argv) == 2:
             return weechat.WEECHAT_RC_ERROR
 
-        if not fish_key_delete(targetl):
+        if not fish_key_delete(target):
             return weechat.WEECHAT_RC_ERROR
 
-        weechat.prnt(buffer, "removed key for %s" % target)
+        weechat.prnt(buffer, f'removed key for {target}')
 
         return weechat.WEECHAT_RC_OK
 
@@ -973,12 +1009,12 @@ def fish_cmd_blowkey(data, buffer, args):
         if server_name == "":
             return weechat.WEECHAT_RC_ERROR
 
-        weechat.prnt(buffer, "Initiating DH1080 Exchange with %s" % target)
-        fish_DH1080ctx[targetl] = DH1080Ctx()
-        msg = dh1080_pack(fish_DH1080ctx[targetl])
-        fish_key_delete(targetl)
-        weechat.command(buffer, "/mute notice -server %s %s %s" % (
-            server_name, target_user, msg))
+        weechat.prnt(buffer, f'Initiating DH1080 Exchange with {target}')
+        fish_DH1080ctx[target] = DH1080Ctx()
+        msg = dh1080_pack(fish_DH1080ctx[target])
+        fish_key_delete(target)
+        weechat.command(
+            buffer, f'/mute notice -server {server_name} {target_user} {msg}')
 
         return weechat.WEECHAT_RC_OK
 
@@ -996,56 +1032,69 @@ def fish_secure_key():
         weechat.config_string(fish_config_option["key"]), {}, {}, {})
 
 
+def fish_tag(msg, mode=None):
+    tag = f'{TAG_NAME}={mode}' if mode is not None else None
+    if msg.startswith('@'):
+        msg = re.sub(
+            r'^@([^ ]*;|)' +
+            re.escape(TAG_NAME) +
+            r'(=[^ ;])?(;| )', r'@\1\3',
+            msg)
+        if tag is not None:
+            msg = re.sub(r'^@', f"@{tag};", msg)
+    elif tag is not None:
+        msg = f'@{tag} {msg}'
+
+    return msg
+
+
 def fish_announce_encrypted(buffer, target, cbc):
-    global fish_config_option
     new_state = 'cbc' if cbc else 'ecb'
 
-    if (fish_state_get(buffer) == new_state):
+    if fish_state_get(buffer) == new_state:
         return
 
-    (server, nick) = target.split("/")
+    server, nick = target.split('/')
 
-    if (weechat.info_get("irc_is_nick", nick) and
-            weechat.buffer_get_string(buffer, "localvar_type") != "private"):
+    if (weechat.info_get('irc_is_nick', nick) and
+            weechat.buffer_get_string(buffer, 'localvar_type') != 'private'):
         # if we get a private message and there no buffer yet, create one and
         # jump back to the previous buffer
-        weechat.command(buffer, "/mute query -server %s %s" % (server, nick))
-        buffer = weechat.info_get("irc_buffer", "%s,%s" % (server, nick))
-        weechat.command(buffer, "/input jump_previously_visited_buffer")
+        weechat.command(buffer, f'/mute query -server {server} {nick}')
+        buffer = weechat.info_get('irc_buffer', f'{server},{nick}')
+        weechat.command(buffer, '/input jump_previously_visited_buffer')
 
-    if (weechat.config_boolean(fish_config_option['announce'])):
+    if weechat.config_boolean(fish_config_option['announce']):
         fish_alert(
-            buffer, f"Messages to/from {target} are encrypted ({new_state}).")
+            buffer, f'Messages to/from {target} are encrypted ({new_state}).')
 
     fish_state_set(buffer, new_state)
 
 
 def fish_announce_unencrypted(buffer, target):
-    global fish_config_option
-
-    if (fish_state_get(buffer) == 'plaintext'):
+    if fish_state_get(buffer) == 'plaintext':
         return
 
-    if (weechat.config_boolean(fish_config_option['announce'])):
-        fish_alert(buffer, "Messages to/from %s are %s*not*%s encrypted." % (
-            target,
-            weechat.color(weechat.config_color(fish_config_option["alert"])),
-            weechat.color("chat")))
+    if weechat.config_boolean(fish_config_option['announce']):
+        fish_alert(
+            buffer, f"Messages to/from {target} are {
+                weechat.color(
+                    weechat.config_color(fish_config_option['alert']))}*not*{
+                weechat.color('chat')} encrypted.")
 
     fish_state_set(buffer, "plaintext")
 
 
 def fish_alert(buffer, message):
-    mark = "%s%s%s\t" % (
-        weechat.color(weechat.config_color(fish_config_option["alert"])),
-        weechat.config_string(fish_config_option["marker"]),
-        weechat.color("chat"))
-
-    weechat.prnt(buffer, "%s%s" % (mark, message))
+    mark = f"{
+        weechat.color(weechat.config_color(fish_config_option['alert']))}{
+        weechat.config_string(fish_config_option['marker'])}{
+        weechat.color('chat')}"
+    weechat.prnt(buffer, f'{mark}\t{message}')
 
 
 def fish_list_keys(buffer):
-    weechat.command("", f"/set {CONFIG_FILE_NAME}.keys.*")
+    weechat.command(buffer, f"/set {CONFIG_FILE_NAME}.keys.*")
 
 
 def fish_state_set(buffer, state):
@@ -1128,6 +1177,9 @@ if (__name__ == "__main__" and import_ok and
 
     fish_bar_item = weechat.bar_item_new(
         '(extra)' + BAR_ITEM_NAME, 'fish_bar_cb', '')
+
+    weechat.hook_line(
+        "", "", "irc_privmsg,irc_topic,irc_notice,irc_332", "fish_line_cb", "")
 
     weechat.hook_modifier(
         "input_text_for_buffer", "fish_modifier_input_text", "")
