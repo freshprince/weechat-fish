@@ -70,7 +70,7 @@ from os import urandom
 
 SCRIPT_NAME = "fish"
 SCRIPT_AUTHOR = "David Flatz <david@upcs.at>"
-SCRIPT_VERSION = "1.0rc2"
+SCRIPT_VERSION = "1.0"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "FiSH for weechat"
 CONFIG_FILE_NAME = SCRIPT_NAME
@@ -87,10 +87,10 @@ except ImportError:
     import_ok = False
 
 try:
-    import Crypto.Cipher.Blowfish as CryptoBlowfish
+    import Cryptodome.Cipher.Blowfish as CryptoBlowfish
 except ImportError:
     try:
-        import Cryptodome.Cipher.Blowfish as CryptoBlowfish
+        import Crypto.Cipher.Blowfish as CryptoBlowfish
     except ImportError:
         print("Pycryptodome must be installed to use fish")
         import_ok = False
@@ -145,7 +145,7 @@ def fish_config_keys_delete_cb(data, config_file, section, option):
         except Exception:
             pass
     weechat.config_option_free(option)
-    server, name = option_name.split('/')
+    server, name = option_name.split('/', 1)
     buffer = weechat.info_get("irc_buffer", f"{server},{name}")
     if buffer:
         fish_state_set(buffer, None)
@@ -401,7 +401,9 @@ def blowcrypt_unpack(msg, key):
     if rest.startswith('*'):  # CBC mode
         cbc = True
         rest = rest[1:]
-        if len(rest) % 4:
+        if len(rest) % 4 == 1:
+            rest = rest[:-1]
+        elif len(rest) % 4:
             rest += '=' * (4 - len(rest) % 4)
         raw = base64.b64decode(rest)
 
@@ -577,8 +579,11 @@ def dh1080_pack(ctx):
     if ctx.state == 0:
         ctx.state = 1
         cmd = "DH1080_INIT "
-    else:
+    elif ctx.state <= 2:
+        ctx.state += 1
         cmd = "DH1080_FINISH "
+    else:
+        return None
     return cmd + dh1080_b64encode(int2bytes(ctx.public)) + (
         " CBC" if ctx.cbc else "")
 
@@ -606,10 +611,10 @@ def dh1080_unpack(msg, ctx):
         except Exception as e:
             raise ValueError from e
 
-    elif ctx.state == 1:
+    elif ctx.state <= 2:
         if not msg.startswith("DH1080_FINISH "):
             raise ValueError
-        ctx.state = 1
+        ctx.state += 1
         try:
             cmd, public_raw, *rest = msg.split(' ')
             public = bytes2int(dh1080_b64decode(public_raw))
@@ -622,6 +627,9 @@ def dh1080_unpack(msg, ctx):
 
         except Exception as e:
             raise ValueError from e
+
+    else:
+        raise ValueError
 
     return True
 
@@ -677,7 +685,11 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
     if (is_direct and text.startswith('DH1080_FINISH ') and
             target in fish_DH1080ctx and
             dh1080_unpack(text, fish_DH1080ctx[target])):
-        fish_alert(buffer, f'Key exchange for {target} successful')
+        if reply := dh1080_pack(fish_DH1080ctx[target]):
+            fish_key_delete(target)
+            weechat.command(
+                buffer, f'/mute notice -server {server_name} {dest} {reply}')
+        fish_alert(buffer, f'Key exchange with {target} successful.')
         fish_key_set(target, dh1080_secret(fish_DH1080ctx[target]),
                      fish_DH1080ctx[target].cbc)
         del fish_DH1080ctx[target]
@@ -693,11 +705,10 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
         reply = dh1080_pack(fish_DH1080ctx[target])
         fish_key_delete(target)
         weechat.command(
-            buffer, f"/mute notice -server {server_name} {dest} {reply}")
+            buffer, f'/mute notice -server {server_name} {dest} {reply}')
         fish_key_set(target, dh1080_secret(
             fish_DH1080ctx[target]), fish_DH1080ctx[target].cbc)
-        fish_alert(buffer, f"Key exchange initiated by {target}. Key set.")
-        del fish_DH1080ctx[target]
+        fish_alert(buffer, f'Key exchange initiated by {target}. Key set.')
 
         return ""
 
@@ -853,7 +864,7 @@ def fish_line_cb(data: str, line):
     state = 'plaintext'
     for tag in line['tags'].split(','):
         if tag.startswith('irc_tag_fish='):
-            _, state = tag.split('=')
+            _, state = tag.split('=', 1)
         if tag == 'self_msg':
             _, cbc = key
             state = 'cbc' if cbc else 'ecb'
@@ -1051,7 +1062,7 @@ def fish_announce_encrypted(buffer, target, cbc):
     if fish_state_get(buffer) == new_state:
         return
 
-    server, nick = target.split('/')
+    server, nick = target.split('/', 1)
 
     if (weechat.info_get('irc_is_nick', nick) and
             weechat.buffer_get_string(buffer, 'localvar_type') != 'private'):
@@ -1073,20 +1084,14 @@ def fish_announce_unencrypted(buffer, target):
         return
 
     if weechat.config_boolean(fish_config_option['announce']):
-        fish_alert(
-            buffer, f"Messages to/from {target} are {
-                weechat.color(
-                    weechat.config_color(fish_config_option['alert']))}*not*{
-                weechat.color('chat')} encrypted.")
-
+        fish_alert(buffer, f"Messages to/from {target} are "
+                   f"{weechat.color(weechat.config_color(fish_config_option['alert']))}*not*"
+                   f"{weechat.color('chat')} encrypted.")
     fish_state_set(buffer, "plaintext")
 
 
 def fish_alert(buffer, message):
-    mark = f"{
-        weechat.color(weechat.config_color(fish_config_option['alert']))}{
-        weechat.config_string(fish_config_option['marker'])}{
-        weechat.color('chat')}"
+    mark = f"{weechat.color(weechat.config_color(fish_config_option['alert']))}{weechat.config_string(fish_config_option['marker'])}{weechat.color('chat')}"
     weechat.prnt(buffer, f'{mark}\t{message}')
 
 
